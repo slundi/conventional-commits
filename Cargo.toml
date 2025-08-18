@@ -1,27 +1,30 @@
 [package]
-name = "MY_PROJECT"
-authors = ["Sébastien LUNDI"]
-description = "SHORT DESCRIPTION"
-readme = "README.md"
-license = "Apache-2.0"
-repository = "https://codeberg.org/slundi/MY_PROJECT"
-keywords = []
-categories = []
-version = "0.1.0"
+name = "conventional-commits"
+version = "0.9.0"
 edition = "2021"
+description = "A lightweight library and CLI tool for validating Conventional Commits"
+license = "MIT"
+keywords = ["git", "commit", "conventional", "validation", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+authors = ["Sébastien LUNDI"]
+repository = "https://codeberg.org/slundi/conventional-commits"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "commit-check"
+path = "src/main.rs"
 
-# [lib]
-# name = "MY_PROJECT"
-# path = "src/lib.rs"
-
-# [[bin]]
-# name = "MY_PROJECT"
-# path = "src/main.rs"
+[lib]
+name = "conventional_commits"
+path = "src/lib.rs"
 
 [dependencies]
+clap = { version = "4.4", features = ["derive"] }
+regex = "1.10"
+thiserror = "1.0"
 
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.0"
 
 [workspace.metadata.cargo-machete]
 ignored = []
