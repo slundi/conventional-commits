@@ -59,7 +59,7 @@
 
         meta = with pkgs.lib; {
           description = "A lightweight library and CLI tool for validating Conventional Commits";
-          homepage = "https://github.com/yourusername/conventional-commits";
+          homepage = "https://codeberg.org/slundi/conventional-commits";
           license = licenses.mit;
           maintainers = []; # Add your maintainer info here
           mainProgram = "commit-check";

@@ -10,13 +10,13 @@ rustPlatform.buildRustPackage rec {
   version = "0.1.0";
 
   src = fetchFromGitHub {
-    owner = "yourusername"; # Remplacez par votre nom d'utilisateur GitHub
+    owner = "slundi";
     repo = "conventional-commits";
     rev = "v${version}";
-    hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # À remplacer par le vrai hash
+    hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # replace with real hash
   };
 
-  cargoHash = "sha256-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="; # À remplacer par le vrai hash
+  cargoHash = "sha256-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="; # replace with real hash
 
   nativeBuildInputs = [
     installShellFiles
@@ -37,11 +37,11 @@ rustPlatform.buildRustPackage rec {
 
   meta = with lib; {
     description = "A lightweight library and CLI tool for validating Conventional Commits";
-    homepage = "https://github.com/yourusername/conventional-commits";
+    homepage = "https://codeberg.org/slundi/conventional-commits";
     license = licenses.mit;
     maintainers = with maintainers; []; # Ajoutez votre nom de maintainer nixpkgs ici
     mainProgram = "commit-check";
     platforms = platforms.all;
-    changelog = "https://github.com/yourusername/conventional-commits/blob/v${version}/CHANGELOG.md";
+    changelog = "https://codeberg.org/slundi/conventional-commits/blob/v${version}/CHANGELOG.md";
   };
 }

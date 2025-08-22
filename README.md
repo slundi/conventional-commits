@@ -23,7 +23,7 @@ cargo install conventional-commits
 ### From source
 
 ```bash
-git clone https://github.com/yourusername/conventional-commits
+git clone https://codeberg.org/slundi/conventional-commits
 cd conventional-commits
 cargo build --release
 ```
