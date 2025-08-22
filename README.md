@@ -23,7 +23,7 @@ cargo install conventional-commits
 ### From source
 
 ```bash
-git clone https://codeberg.org/slundi/conventional-commits
+git clone https://github.com/yourusername/conventional-commits
 cd conventional-commits
 cargo build --release
 ```
@@ -70,7 +70,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-conventional-commits = "0.9.0"
+conventional-commits = "0.1.0"
 ```
 
 ### Basic validation
@@ -80,13 +80,13 @@ use conventional_commits::{validate_commit, CommitType};
 
 fn main() {
     let message = "feat: add user authentication";
-
+    
     match validate_commit(message) {
         Ok(commit) => {
             println!("Valid commit!");
             println!("Type: {:?}", commit.commit_type);
             println!("Description: {}", commit.description);
-
+            
             if commit.is_breaking_change() {
                 println!("⚠️ Breaking change detected!");
             }
@@ -212,11 +212,17 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 ### Development
 
 ```bash
-# Run tests
-cargo test
+# Make scripts executable
+chmod +x scripts/*.sh
 
-# Run CLI tests
-cargo test --bin commit-check
+# Run comprehensive tests
+make test
+
+# Run only unit tests  
+make test-unit
+
+# Run tests safely with build step
+make test-safe
 
 # Format code
 cargo fmt
