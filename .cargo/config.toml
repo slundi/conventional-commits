@@ -1,0 +1,7 @@
+[build]
+# Ensure the binary is built before running integration tests
+jobs = 1
+
+[env]
+# Environment variables for tests
+RUST_BACKTRACE = "1"
