@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${BLUE}🧪 Testing Nix package for conventionnal-commits${NC}"
+echo -e "${BLUE}🧪 Testing Nix package for conventional-commits${NC}"
 echo
 
 # Step 1: Test Nix build
@@ -95,7 +95,7 @@ fi
 echo -e "${YELLOW}🐚 Testing with nix-shell...${NC}"
 
 echo -e "${BLUE}Testing nix-shell execution...${NC}"
-if nix-shell -p conventionnal-commits --run "commit-check --message 'test: nix-shell test'"; then
+if nix-shell -p conventional-commits --run "commit-check --message 'test: nix-shell test'"; then
     echo -e "${GREEN}✅ nix-shell test passed${NC}"
 else
     echo -e "${RED}❌ nix-shell test failed${NC}"
@@ -117,7 +117,7 @@ fi
 
 # Step 6: Clean up
 echo -e "${YELLOW}🧹 Cleaning up...${NC}"
-nix-env -e conventionnal-commits || true
+nix-env -e conventional-commits || true
 
 # Step 7: Performance test (basic)
 echo -e "${YELLOW}⚡ Testing performance...${NC}"
@@ -125,7 +125,7 @@ echo -e "${BLUE}Testing multiple commits processing...${NC}"
 
 start_time=$(date +%s.%N)
 for i in {1..100}; do
-    nix-shell -p conventionnal-commits --run "commit-check --message 'feat: test commit $i'" > /dev/null
+    nix-shell -p conventional-commits --run "commit-check --message 'feat: test commit $i'" > /dev/null
 done
 end_time=$(date +%s.%N)
 
@@ -134,7 +134,7 @@ echo -e "${GREEN}✅ Processed 100 commits in ${runtime} seconds${NC}"
 
 echo
 echo -e "${GREEN}🎉 All Nix package tests passed successfully!${NC}"
-echo -e "${BLUE}The conventionnal-commits Nix package is ready for nixpkgs submission.${NC}"
+echo -e "${BLUE}The conventional-commits Nix package is ready for nixpkgs submission.${NC}"
 
 echo
 echo -e "${YELLOW}Next steps:${NC}"

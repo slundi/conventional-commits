@@ -37,11 +37,11 @@ rustPlatform.buildRustPackage rec {
 
   meta = with lib; {
     description = "A lightweight library and CLI tool for validating Conventional Commits";
-    homepage = "https://github.com/yourusername/conventionnal-commits";
+    homepage = "https://github.com/yourusername/conventional-commits";
     license = licenses.mit;
     maintainers = with maintainers; []; # Ajoutez votre nom de maintainer nixpkgs ici
     mainProgram = "commit-check";
     platforms = platforms.all;
-    changelog = "https://github.com/yourusername/conventionnal-commits/blob/v${version}/CHANGELOG.md";
+    changelog = "https://github.com/yourusername/conventional-commits/blob/v${version}/CHANGELOG.md";
   };
 }

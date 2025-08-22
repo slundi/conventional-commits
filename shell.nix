@@ -39,7 +39,7 @@ pkgs.mkShell {
   ];
 
   shellHook = ''
-    echo "🔨 Nix development shell for conventionnal-commits"
+    echo "🔨 Nix development shell for conventional-commits"
     echo ""
     echo "Available commands:"
     echo "  cargo build                 - Build the project"

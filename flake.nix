@@ -28,8 +28,8 @@
       };
 
       # Build the package
-      conventionnal-commits = pkgs.rustPlatform.buildRustPackage rec {
-        pname = "conventionnal-commits";
+      conventional-commits = pkgs.rustPlatform.buildRustPackage rec {
+        pname = "conventional-commits";
         version = "0.1.0";
 
         src = ./.;
@@ -59,7 +59,7 @@
 
         meta = with pkgs.lib; {
           description = "A lightweight library and CLI tool for validating Conventional Commits";
-          homepage = "https://github.com/yourusername/conventionnal-commits";
+          homepage = "https://github.com/yourusername/conventional-commits";
           license = licenses.mit;
           maintainers = []; # Add your maintainer info here
           mainProgram = "commit-check";
@@ -68,8 +68,8 @@
       };
     in {
       # Default package
-      packages.default = conventionnal-commits;
-      packages.conventionnal-commits = conventionnal-commits;
+      packages.default = conventional-commits;
+      packages.conventional-commits = conventional-commits;
 
       # Development shell
       devShells.default = pkgs.mkShell {
@@ -85,7 +85,7 @@
         ];
 
         shellHook = ''
-          echo "🚀 Development environment for conventionnal-commits"
+          echo "🚀 Development environment for conventional-commits"
           echo "Available commands:"
           echo "  cargo build    - Build the project"
           echo "  cargo test     - Run tests"
@@ -98,18 +98,18 @@
 
       # Apps
       apps.default = flake-utils.lib.mkApp {
-        drv = conventionnal-commits;
+        drv = conventional-commits;
         name = "commit-check";
       };
 
       apps.commit-check = flake-utils.lib.mkApp {
-        drv = conventionnal-commits;
+        drv = conventional-commits;
         name = "commit-check";
       };
 
       # Checks for CI
       checks = {
-        build = conventionnal-commits;
+        build = conventional-commits;
         format =
           pkgs.runCommand "check-format"
           {
