@@ -1,13 +1,14 @@
+# When adding new tools to this template, always check the official registry to
+# find the correct attribute name:
+# * Search Tool: NixOS Package Search
+# * Usage: If you find ripgrep, simply add pkgs.ripgrep to the buildInputs in your flake.nix.
 {
-  description = "A lightweight library and CLI tool for validating Conventional Commits";
+  description = "Rust Template with automatic pre-commit hooks";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay = {
-      url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
+    rust-overlay.url = "github:oxalica/rust-overlay";
   };
 
   outputs = {
@@ -18,119 +19,50 @@
   }:
     flake-utils.lib.eachDefaultSystem (system: let
       overlays = [(import rust-overlay)];
-      pkgs = import nixpkgs {
-        inherit system overlays;
+      pkgs = import nixpkgs {inherit system overlays;};
+      extensions = with pkgs.vscode-extensions; [
+        rust-lang.rust-analyzer
+        tamasfe.even-better-toml
+        jnoortheen.nix-ide
+        mkhl.direnv
+        vadimcn.vscode-lldb
+        redhat.vscode-yaml
+        # Note: If swellaby is not in your nixpkgs channel,
+        # you may need to use a community overlay or skip it here.
+        swellaby.vscode-rust-test-adapter
+      ];
+      # Create a custom VSCodium with these extensions
+      custom-codium = pkgs.vscode-with-extensions.override {
+        vscode = pkgs.vscodium;
+        vscodeExtensions = extensions;
       };
 
-      # Define Rust toolchain
-      rustToolchain = pkgs.rust-bin.stable.latest.default.override {
-        extensions = ["rust-src" "clippy" "rustfmt"];
-      };
-
-      # Build the package
-      conventional-commits = pkgs.rustPlatform.buildRustPackage rec {
-        pname = "conventional-commits";
-        version = "0.1.0";
-
-        src = ./.;
-
-        cargoLock = {
-          lockFile = ./Cargo.lock;
-        };
-
-        nativeBuildInputs = with pkgs; [
-          installShellFiles
-        ];
-
-        # Tests require the binary to be built first
-        checkPhase = ''
-          runHook preCheck
-          cargo test --lib --verbose
-          runHook postCheck
-        '';
-
-        postInstall = ''
-          # Install shell completions if clap supports it
-          $out/bin/commit-check --help > /dev/null || true
-
-          # Create man page directory structure
-          mkdir -p $out/share/man/man1
-        '';
-
-        meta = with pkgs.lib; {
-          description = "A lightweight library and CLI tool for validating Conventional Commits";
-          homepage = "https://codeberg.org/slundi/conventional-commits";
-          license = licenses.mit;
-          maintainers = []; # Add your maintainer info here
-          mainProgram = "commit-check";
-          platforms = platforms.all;
-        };
-      };
+      # Define the rust toolchain from your toml
+      rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
     in {
-      # Default package
-      packages.default = conventional-commits;
-      packages.conventional-commits = conventional-commits;
-
-      # Development shell
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
           rustToolchain
+          cargo-dist
+          cargo-nextest
+          cargo-machete
           cargo-audit
-          cargo-tarpaulin
-          rust-analyzer
-          nixpkgs-fmt
-          nix-prefetch-github
-          # For generating completion scripts
-          installShellFiles
+          cargo-deny
+          prek # pre-commit
+          gitleaks # The compiled secret scanner or trufflehog or ripgrep
+          just # Command runner
+          custom-codium
         ];
 
+        # This runs when the shell starts
         shellHook = ''
-          echo "🚀 Development environment for conventional-commits"
-          echo "Available commands:"
-          echo "  cargo build    - Build the project"
-          echo "  cargo test     - Run tests"
-          echo "  cargo clippy   - Run linter"
-          echo "  cargo fmt      - Format code"
-          echo "  make test      - Run comprehensive tests"
-          echo "  nix build      - Build with Nix"
+          echo "🦀 Rust Dev Shell Loaded"
+          echo "💡 Tip: Run 'codium .' to start coding with all extensions pre-installed."
+          # Automatically install hooks if .git exists
+          if [ -d .git ] && command -v prek >/dev/null; then
+            prek install
+          fi
         '';
-      };
-
-      # Apps
-      apps.default = flake-utils.lib.mkApp {
-        drv = conventional-commits;
-        name = "commit-check";
-      };
-
-      apps.commit-check = flake-utils.lib.mkApp {
-        drv = conventional-commits;
-        name = "commit-check";
-      };
-
-      # Checks for CI
-      checks = {
-        build = conventional-commits;
-        format =
-          pkgs.runCommand "check-format"
-          {
-            buildInputs = [rustToolchain];
-          }
-          ''
-            cd ${./.}
-            cargo fmt -- --check
-            touch $out
-          '';
-
-        clippy =
-          pkgs.runCommand "clippy-check"
-          {
-            buildInputs = [rustToolchain];
-          }
-          ''
-            cd ${./.}
-            cargo clippy -- -D warnings
-            touch $out
-          '';
       };
     });
 }
