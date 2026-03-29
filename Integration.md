@@ -89,6 +89,36 @@ repos:
         stages: [commit-msg]
 ```
 
+## Nix
+
+### `shell.nix` (Traditional Nix)
+
+This is useful for providing a development environment where the binary is automatically built and available in the `$PATH`.
+
+```nix
+{ pkgs ? import <nixpkgs> {} }:
+
+pkgs.mkShell {
+  buildInputs = with pkgs; [
+    rustc
+    cargo
+    gcc
+    # Standard dependencies for your tool
+    libiconv
+  ];
+
+  shellHook = ''
+    echo "🔨 Conventional Commits Dev Shell"
+    # Optional: Alias to run the local version easily
+    alias check="cargo run -- validate"
+  '';
+}
+```
+
+### `flake.nix` (Modern Nix)
+
+Run it directly with `nix run github:slundi/conventional-commits -- validate --message "feat: nix support`.
+
 ## Comparison of Installation Methods
 
 <table>

@@ -40,6 +40,23 @@
       # Define the rust toolchain from your toml
       rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
     in {
+      # The Package definition
+      packages.default = pkgs.rustPlatform.buildRustPackage {
+        pname = manifest.name;
+        version = manifest.version;
+        src = ./.;
+
+        cargoLock = {
+          lockFile = ./Cargo.lock;
+        };
+
+        nativeBuildInputs = [pkgs.pkg-config];
+        buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
+          pkgs.darwin.apple_sdk.frameworks.Security
+        ];
+      };
+
+      # Development Shell
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
           rustToolchain
@@ -63,6 +80,11 @@
             prek install
           fi
         '';
+      };
+
+      # App definition (allows 'nix run')
+      apps.default = flake-utils.lib.mkApp {
+        drv = self.packages.${system}.default;
       };
     });
 }
