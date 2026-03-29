@@ -64,54 +64,9 @@ commit-check --message "feat: new feature" --max-length 50 --allow-custom-types=
 - `--disallow-period <BOOL>`: Disallow period at end of description (default: true)
 - `--verbose`: Enable detailed output
 
-## Library Usage
+### Integration
 
-Add to your `Cargo.toml`:
-
-```toml
-[dependencies]
-conventional-commits = "0.1.0"
-```
-
-### Basic validation
-
-```rust
-use conventional_commits::{validate_commit, CommitType};
-
-fn main() {
-    let message = "feat: add user authentication";
-    
-    match validate_commit(message) {
-        Ok(commit) => {
-            println!("Valid commit!");
-            println!("Type: {:?}", commit.commit_type);
-            println!("Description: {}", commit.description);
-            
-            if commit.is_breaking_change() {
-                println!("⚠️ Breaking change detected!");
-            }
-        }
-        Err(e) => {
-            eprintln!("Invalid commit: {}", e);
-        }
-    }
-}
-```
-
-### Custom validation
-
-```rust
-use conventional_commits::{validate_commit_with_config, ValidationConfig};
-
-let config = ValidationConfig {
-    max_description_length: 50,
-    allow_custom_types: false,
-    enforce_lowercase_description: true,
-    disallow_description_period: true,
-};
-
-let result = validate_commit_with_config("feat: add feature", &config);
-```
+See [Integration](Integration.md).
 
 ## Conventional Commits Format
 
@@ -211,25 +166,7 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 
 ### Development
 
-```bash
-# Make scripts executable
-chmod +x scripts/*.sh
-
-# Run comprehensive tests
-make test
-
-# Run only unit tests  
-make test-unit
-
-# Run tests safely with build step
-make test-safe
-
-# Format code
-cargo fmt
-
-# Run clippy
-cargo clippy
-```
+See [Development](Development.md)
 
 ## License
 
