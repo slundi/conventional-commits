@@ -62,12 +62,13 @@ fn test_verbose_output() {
 #[test]
 fn test_breaking_change_detection() {
     let mut cmd = get_test_command();
+    cmd.env("NO_COLOR", "1");
     cmd.arg("--message")
         .arg("feat!: breaking API change")
         .arg("--verbose")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Breaking change detected"));
+        .stdout(predicate::str::contains("BREAKING CHANGE detected"));
 }
 
 #[test]

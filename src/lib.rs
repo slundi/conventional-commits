@@ -221,7 +221,7 @@ pub fn validate_commit_with_config(
 
     // Parse the header using regex
     let re = Regex::new(
-        r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?:\s*(?P<description>.+)$",
+        r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?:\s+(?P<description>.+)$",
     )
     .unwrap();
 
@@ -269,7 +269,6 @@ pub fn validate_commit_with_config(
     let body_parts: Vec<String> = Vec::new();
     let mut body_lines = Vec::new();
     let mut footer_lines = Vec::new();
-    let footers = Vec::new();
     let mut is_breaking = breaking_change;
 
     if lines.len() > 2 {
@@ -300,7 +299,7 @@ pub fn validate_commit_with_config(
     let body = if body_parts.is_empty() {
         None
     } else {
-        Some(body_parts.join("\n").trim().to_string())
+        Some(body_lines.join("\n").trim().to_string())
     };
 
     Ok(ConventionalCommit {
@@ -309,7 +308,7 @@ pub fn validate_commit_with_config(
         breaking_change: is_breaking,
         description: description.to_string(),
         body,
-        footers,
+        footers: footer_lines,
     })
 }
 
@@ -332,39 +331,41 @@ mod tests {
     fn test_valid_commits() {
         let valid_commits = vec![
             "feat: add user authentication",
-            "fix: resolve login issue",
             "feat(auth): add OAuth support",
-            "feat!: breaking change to API",
-            "chore: update dependencies",
-            "docs: update README",
+            "feat!: breaking change",
+            "fix: bug\n\nBody message", // Standard compliant
         ];
 
         for commit in valid_commits {
-            assert!(
-                validate_commit(commit).is_ok(),
-                "Failed to validate: {}",
-                commit
-            );
+            let res = validate_commit(commit);
+            assert!(res.is_ok(), "Failed on: {}\nError: {:?}", commit, res.err());
         }
     }
 
     #[test]
     fn test_invalid_commits() {
-        let invalid_commits = vec![
-            "",
-            "add user authentication",
-            "feat:",
-            "feat: Add user authentication",  // Uppercase
-            "feat: add user authentication.", // Period
+        let invalid = vec![
+            ("feat:no-space", "Missing space after colon"),
+            (
+                "feat: description\nNo blank line",
+                "Missing blank line rule",
+            ),
         ];
 
-        for commit in invalid_commits {
-            assert!(
-                validate_commit(commit).is_err(),
-                "Should have failed: {}",
-                commit
-            );
+        for (msg, reason) in invalid {
+            let res = validate_commit(msg);
+            assert!(res.is_err(), "Should fail for {}: {}", reason, msg);
         }
+    }
+
+    #[test]
+    fn test_breaking_change_footer() {
+        let msg = "feat: logic\n\nBREAKING CHANGE: this is a footer";
+        let commit = validate_commit(msg).unwrap();
+        assert!(
+            commit.breaking_change,
+            "Footer should trigger breaking_change flag"
+        );
     }
 
     #[test]

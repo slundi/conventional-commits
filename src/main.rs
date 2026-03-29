@@ -2,8 +2,9 @@ mod cli;
 
 use clap::Parser;
 use conventional_commits::{validate_commit_with_config, ValidationConfig};
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 use std::process;
+use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::cli::{show_examples, show_help_hint, show_types, Cli, Commands};
 
@@ -35,6 +36,22 @@ commit-check validate --message "$(cat "$1")" --verbose
     fs::set_permissions(&hook_path, perms)?;
 
     Ok(())
+}
+
+/// Helper for colored console output
+fn print_color(message: &str, color: Color, is_bold: bool, is_stderr: bool) {
+    let mut stream = if is_stderr {
+        StandardStream::stderr(ColorChoice::Auto)
+    } else {
+        StandardStream::stdout(ColorChoice::Auto)
+    };
+
+    let mut spec = ColorSpec::new();
+    spec.set_fg(Some(color)).set_bold(is_bold);
+
+    let _ = stream.set_color(&spec);
+    let _ = write!(&mut stream, "{}", message);
+    let _ = stream.reset();
 }
 
 fn main() {
@@ -93,15 +110,18 @@ fn validate_and_report(message: &str, config: &ValidationConfig, verbose: bool) 
 
     match validate_commit_with_config(message, config) {
         Ok(commit) => {
+            print_color("✅ Valid conventional commit!", Color::Green, true, false);
+            println!();
+
             if verbose {
-                println!("✅ Valid conventional commit!");
                 println!("Type: {}", commit.commit_type);
                 if let Some(scope) = &commit.scope {
                     println!("Scope: {}", scope);
                 }
                 println!("Description: {}", commit.description);
                 if commit.is_breaking_change() {
-                    println!("⚠️  Breaking change detected!");
+                    print_color("⚠️  BREAKING CHANGE detected!", Color::Yellow, true, false);
+                    println!();
                 }
                 if let Some(body) = &commit.body {
                     println!("Body: {}", body);
@@ -114,7 +134,8 @@ fn validate_and_report(message: &str, config: &ValidationConfig, verbose: bool) 
             }
         }
         Err(e) => {
-            eprintln!("❌ Invalid commit message: {}", e);
+            print_color("❌ Invalid commit message: ", Color::Red, true, true);
+            eprintln!("{}", e);
             if verbose {
                 eprintln!("Message was: '{}'", message);
                 show_help_hint();

@@ -1,6 +1,6 @@
 [package]
 name = "conventional-commits-check"
-version = "0.9.3"
+version = "0.9.4"
 edition = "2021"
 description = "A lightweight library and CLI tool for validating Conventional Commits"
 license = "MIT"
@@ -21,6 +21,7 @@ path = "src/lib.rs"
 clap = { version = "4.4", features = ["derive"] }
 regex = "1.12"
 thiserror = "2.0"
+termcolor = "1.4"
 
 [dev-dependencies]
 assert_cmd = "2.2"
