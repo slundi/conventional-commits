@@ -45,12 +45,44 @@ enum Commands {
     Examples,
     /// Show commit types information
     Types,
+    /// Install as a git commit-msg hook
+    InstallHook, // <--- New variant
 }
 
 #[derive(Args)]
 struct ValidateArgs {
     /// Commit message to validate
     message: Option<String>,
+}
+
+fn install_git_hook() -> std::io::Result<()> {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt; // Note: For Linux/macOS
+
+    let hook_dir = std::path::Path::new(".git/hooks");
+    if !hook_dir.exists() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Not a git repository (no .git/hooks found)",
+        ));
+    }
+
+    let hook_path = hook_dir.join("commit-msg");
+
+    // The script reads the commit message file ($1) and pipes it to commit-check
+    let hook_content = r#"#!/bin/sh
+# commit-check git hook
+commit-check validate --message "$(cat "$1")" --verbose
+"#;
+
+    fs::write(&hook_path, hook_content)?;
+
+    // Make the script executable (Unix-specific)
+    let mut perms = fs::metadata(&hook_path)?.permissions();
+    perms.set_mode(0o755);
+    fs::set_permissions(&hook_path, perms)?;
+
+    Ok(())
 }
 
 fn main() {
@@ -70,6 +102,13 @@ fn main() {
         }
         Some(Commands::Examples) => show_examples(),
         Some(Commands::Types) => show_types(),
+        Some(Commands::InstallHook) => {
+            if let Err(e) = install_git_hook() {
+                eprintln!("❌ Failed to install hook: {}", e);
+                process::exit(1);
+            }
+            println!("✅ Git hook installed successfully at .git/hooks/commit-msg");
+        }
         None => {
             // Default behavior: validate commit message
             let message = get_commit_message(None, cli.message.as_deref());
