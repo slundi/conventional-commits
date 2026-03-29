@@ -111,9 +111,10 @@ impl ConventionalCommit {
     /// Returns true if this commit represents a breaking change
     pub fn is_breaking_change(&self) -> bool {
         self.breaking_change
-            || self.footers.iter().any(|f| {
-                f.starts_with("BREAKING CHANGE:") || f.starts_with("BREAKING-CHANGE:")
-            })
+            || self
+                .footers
+                .iter()
+                .any(|f| f.starts_with("BREAKING CHANGE:") || f.starts_with("BREAKING-CHANGE:"))
     }
 }
 
@@ -143,6 +144,9 @@ pub enum CommitValidationError {
 
     #[error("Commit type '{0}' is not recognized")]
     UnknownType(String),
+
+    #[error("A blank line is required between the header and the body")]
+    MissingBlankLine,
 }
 
 /// Configuration for commit validation
@@ -216,8 +220,10 @@ pub fn validate_commit_with_config(
     let header = lines[0];
 
     // Parse the header using regex
-    let re = Regex::new(r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?:\s*(?P<description>.+)$")
-        .unwrap();
+    let re = Regex::new(
+        r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?:\s*(?P<description>.+)$",
+    )
+    .unwrap();
 
     let captures = re
         .captures(header)
@@ -227,6 +233,12 @@ pub fn validate_commit_with_config(
     let scope = captures.name("scope").map(|m| m.as_str().to_string());
     let breaking_change = captures.name("breaking").is_some();
     let description = captures.name("description").unwrap().as_str();
+
+    // Validate Blank Line Rule:
+    // If there is more than one line, the second line MUST be empty.
+    if lines.len() > 1 && !lines[1].trim().is_empty() {
+        return Err(CommitValidationError::MissingBlankLine);
+    }
 
     // Validate commit type
     let commit_type = CommitType::from(type_str);
@@ -254,43 +266,62 @@ pub fn validate_commit_with_config(
     }
 
     // Parse body and footers
-    let body = if lines.len() > 1 && !lines[1].trim().is_empty() {
-        None // First non-empty line after header is start of body
-    } else if lines.len() > 2 {
-        let body_lines: Vec<&str> = lines[2..]
-            .iter()
-            .take_while(|&&line| !line.starts_with("BREAKING CHANGE:") && !line.starts_with("BREAKING-CHANGE:"))
-            .cloned()
-            .collect();
+    let body_parts: Vec<String> = Vec::new();
+    let mut body_lines = Vec::new();
+    let mut footer_lines = Vec::new();
+    let footers = Vec::new();
+    let mut is_breaking = breaking_change;
 
-        if body_lines.is_empty() {
-            None
-        } else {
-            Some(body_lines.join("\n"))
+    if lines.len() > 2 {
+        let iter = lines[2..].iter().peekable();
+
+        // Separate Body from Footers
+        for line in iter {
+            // If the current line looks like a footer AND there are no non-footer lines after it
+            if is_breaking_footer(line) || is_footer(line) {
+                // We found a potential footer.
+                // A stricter tool would ensure once footers start, body text cannot reappear.
+                footer_lines.push(line.to_string());
+
+                if is_breaking_footer(line) {
+                    is_breaking = true;
+                }
+            } else {
+                // If we already found "footers" but then find a normal line,
+                // the previous "footers" were actually just part of the body.
+                if !footer_lines.is_empty() {
+                    body_lines.append(&mut footer_lines);
+                }
+                body_lines.push((*line).to_string());
+            }
         }
-    } else {
-        None
-    };
+    }
 
-    // Parse footers
-    let footers: Vec<String> = lines
-        .iter()
-        .filter(|line| {
-            line.starts_with("BREAKING CHANGE:")
-                || line.starts_with("BREAKING-CHANGE:")
-                || line.contains(": ")
-        })
-        .map(|s| s.to_string())
-        .collect();
+    let body = if body_parts.is_empty() {
+        None
+    } else {
+        Some(body_parts.join("\n").trim().to_string())
+    };
 
     Ok(ConventionalCommit {
         commit_type,
         scope,
-        breaking_change,
+        breaking_change: is_breaking,
         description: description.to_string(),
         body,
         footers,
     })
+}
+
+/// Helper to identify Git trailers (footers)
+fn is_footer(line: &str) -> bool {
+    // Basic check for "Token: Value" or "Token #Value"
+    let re = Regex::new(r"^[a-zA-Z-]+: .|^[a-zA-Z-]+ #").unwrap();
+    re.is_match(line)
+}
+
+fn is_breaking_footer(line: &str) -> bool {
+    line.starts_with("BREAKING CHANGE: ") || line.starts_with("BREAKING-CHANGE: ")
 }
 
 #[cfg(test)]
@@ -309,7 +340,11 @@ mod tests {
         ];
 
         for commit in valid_commits {
-            assert!(validate_commit(commit).is_ok(), "Failed to validate: {}", commit);
+            assert!(
+                validate_commit(commit).is_ok(),
+                "Failed to validate: {}",
+                commit
+            );
         }
     }
 
@@ -319,12 +354,16 @@ mod tests {
             "",
             "add user authentication",
             "feat:",
-            "feat: Add user authentication", // Uppercase
+            "feat: Add user authentication",  // Uppercase
             "feat: add user authentication.", // Period
         ];
 
         for commit in invalid_commits {
-            assert!(validate_commit(commit).is_err(), "Should have failed: {}", commit);
+            assert!(
+                validate_commit(commit).is_err(),
+                "Should have failed: {}",
+                commit
+            );
         }
     }
 
@@ -333,7 +372,8 @@ mod tests {
         let commit = validate_commit("feat!: breaking change").unwrap();
         assert!(commit.breaking_change);
 
-        let commit_with_footer = validate_commit("feat: new feature\n\nBREAKING CHANGE: this breaks something").unwrap();
+        let commit_with_footer =
+            validate_commit("feat: new feature\n\nBREAKING CHANGE: this breaks something").unwrap();
         assert!(commit_with_footer.is_breaking_change());
     }
 
@@ -341,6 +381,9 @@ mod tests {
     fn test_commit_types() {
         assert_eq!(CommitType::from("feat"), CommitType::Feat);
         assert_eq!(CommitType::from("fix"), CommitType::Fix);
-        assert_eq!(CommitType::from("custom"), CommitType::Custom("custom".to_string()));
+        assert_eq!(
+            CommitType::from("custom"),
+            CommitType::Custom("custom".to_string())
+        );
     }
 }
