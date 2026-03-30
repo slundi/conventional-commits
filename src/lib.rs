@@ -487,9 +487,11 @@ pub fn validate_commit_with_config(
 /// Attempts to fix common mistakes in a commit message header.
 ///
 /// Fixes applied (only to the first line):
+/// - Lowercases the commit type (`Feat:` → `feat:`)
 /// - Adds missing space after colon (`feat:add thing` → `feat: add thing`)
 /// - Lowercases first letter of description (`feat: Add thing` → `feat: add thing`)
 /// - Removes trailing period from description (`feat: add thing.` → `feat: add thing`)
+/// - Strips leading/trailing whitespace from description (`feat:  add thing  ` → `feat: add thing`)
 ///
 /// Returns the (potentially modified) message. If the header cannot be parsed
 /// even loosely, the original message is returned unchanged.
@@ -501,15 +503,16 @@ pub fn fix_commit_message(message: &str) -> String {
 
     let header = lines[0];
 
-    // Loose regex: allow zero or more spaces after colon so we can fix missing space
+    // Loose parse: allows zero or more spaces after colon so we can fix missing space
     let fixed_header = match parse_header_loose(header) {
         None => return message.to_string(),
         Some((type_str, scope, breaking, description)) => {
+            let type_lower = type_str.to_lowercase();
             let breaking_str = if breaking { "!" } else { "" };
             let fixed_desc = fix_description(&description);
             match scope {
-                Some(s) => format!("{}({}){}: {}", type_str, s, breaking_str, fixed_desc),
-                None => format!("{}{}: {}", type_str, breaking_str, fixed_desc),
+                Some(s) => format!("{}({}){}: {}", type_lower, s, breaking_str, fixed_desc),
+                None => format!("{}{}: {}", type_lower, breaking_str, fixed_desc),
             }
         }
     };
@@ -522,9 +525,10 @@ pub fn fix_commit_message(message: &str) -> String {
 }
 
 fn fix_description(desc: &str) -> String {
+    // Strip leading/trailing whitespace
+    let desc = desc.trim();
     // Strip trailing period
     let desc = desc.strip_suffix('.').unwrap_or(desc);
-
     // Lowercase first char
     let mut chars = desc.chars();
     match chars.next() {
@@ -663,6 +667,19 @@ mod tests {
         let msg = "feat:Add thing.\n\nThis is the body.";
         let fixed = fix_commit_message(msg);
         assert_eq!(fixed, "feat: add thing\n\nThis is the body.");
+    }
+
+    #[test]
+    fn test_fix_type_casing() {
+        assert_eq!(fix_commit_message("Feat: add thing"), "feat: add thing");
+        assert_eq!(fix_commit_message("FIX: resolve bug"), "fix: resolve bug");
+        assert_eq!(fix_commit_message("CHORE(deps): bump version"), "chore(deps): bump version");
+    }
+
+    #[test]
+    fn test_fix_description_whitespace() {
+        assert_eq!(fix_commit_message("feat:   add thing  "), "feat: add thing");
+        assert_eq!(fix_commit_message("fix:  resolve  bug  "), "fix: resolve  bug");
     }
 
     #[test]
