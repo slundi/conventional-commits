@@ -1,4 +1,14 @@
-use clap::{Args, Parser, Subcommand};
+use clap::{Args, Parser, Subcommand, ValueEnum};
+
+/// Output format for validation results
+#[derive(ValueEnum, Clone, Default, PartialEq, Debug)]
+pub(crate) enum OutputFormat {
+    /// Human-readable coloured text (default)
+    #[default]
+    Text,
+    /// Machine-readable JSON
+    Json,
+}
 
 #[derive(Parser)]
 #[command(name = "commit-check")]
@@ -51,6 +61,10 @@ pub(crate) struct Cli {
     /// Ensures commits are linked to an issue or ticket.
     #[arg(long, value_name = "PATTERN")]
     pub(crate) issue_pattern: Option<String>,
+
+    /// Output format
+    #[arg(long, value_enum, default_value = "text")]
+    pub(crate) format: OutputFormat,
 }
 
 #[derive(Subcommand)]

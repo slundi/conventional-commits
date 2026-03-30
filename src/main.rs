@@ -1,12 +1,14 @@
 mod cli;
 
 use clap::Parser;
-use conventional_commits::{fix_commit_message, validate_commit_with_config, ValidationConfig};
+use conventional_commits::{
+    fix_commit_message, validate_commit_with_config, CommitValidationError, ValidationConfig,
+};
 use std::io::{self, Read, Write};
 use std::process;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::cli::{show_examples, show_help_hint, show_types, Cli, Commands};
+use crate::cli::{show_examples, show_help_hint, show_types, Cli, Commands, OutputFormat};
 
 fn install_git_hook(base_dir: &std::path::Path, force: bool) -> std::io::Result<()> {
     use std::fs;
@@ -93,11 +95,13 @@ fn main() {
         issue_pattern: cli.issue_pattern,
     };
 
+    let format = cli.format.clone();
+
     match &cli.command {
         Some(Commands::Validate(args)) => {
             let message = get_commit_message(args.message.as_deref(), cli.message.as_deref());
             let message = apply_fix_if_requested(message, cli.fix);
-            validate_and_report(&message, &config, cli.verbose);
+            validate_and_report(&message, &config, cli.verbose, &format);
         }
         Some(Commands::Examples) => show_examples(),
         Some(Commands::Types) => show_types(),
@@ -113,7 +117,7 @@ fn main() {
             // Default behavior: validate commit message
             let message = get_commit_message(None, cli.message.as_deref());
             let message = apply_fix_if_requested(message, cli.fix);
-            validate_and_report(&message, &config, cli.verbose);
+            validate_and_report(&message, &config, cli.verbose, &format);
         }
     }
 }
@@ -134,14 +138,68 @@ fn get_commit_message(arg_message: Option<&str>, cli_message: Option<&str>) -> S
     }
 }
 
-fn validate_and_report(message: &str, config: &ValidationConfig, verbose: bool) {
+/// Escapes a string for safe embedding in a JSON value.
+fn json_escape(s: &str) -> String {
+    s.replace('\\', "\\\\")
+        .replace('"', "\\\"")
+        .replace('\n', "\\n")
+        .replace('\r', "\\r")
+        .replace('\t', "\\t")
+}
+
+/// Flattens a `CommitValidationError` into individual error message strings.
+/// `Multiple` is unpacked; all other variants become a single-element vec.
+fn error_messages(e: &CommitValidationError) -> Vec<String> {
+    match e {
+        CommitValidationError::Multiple(errs) => errs.0.iter().map(|e| e.to_string()).collect(),
+        _ => vec![e.to_string()],
+    }
+}
+
+fn validate_and_report(
+    message: &str,
+    config: &ValidationConfig,
+    verbose: bool,
+    format: &OutputFormat,
+) {
     if message.is_empty() {
-        eprintln!("Error: No commit message provided");
+        if *format == OutputFormat::Json {
+            println!(r#"{{"valid":false,"errors":["No commit message provided"]}}"#);
+        } else {
+            eprintln!("Error: No commit message provided");
+        }
         process::exit(1);
     }
 
     match validate_commit_with_config(message, config) {
         Ok(commit) => {
+            if *format == OutputFormat::Json {
+                let scope_json = match &commit.scope {
+                    Some(s) => format!("\"{}\"", json_escape(s)),
+                    None => "null".to_string(),
+                };
+                let body_json = match &commit.body {
+                    Some(b) => format!("\"{}\"", json_escape(b)),
+                    None => "null".to_string(),
+                };
+                let footers_json = commit
+                    .footers
+                    .iter()
+                    .map(|f| format!("\"{}\"", json_escape(f)))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                println!(
+                    r#"{{"valid":true,"type":"{}","scope":{},"description":"{}","breaking_change":{},"body":{},"footers":[{}]}}"#,
+                    json_escape(&commit.commit_type.to_string()),
+                    scope_json,
+                    json_escape(&commit.description),
+                    commit.is_breaking_change(),
+                    body_json,
+                    footers_json,
+                );
+                return;
+            }
+
             print_color("✅ Valid conventional commit!", Color::Green, true, false);
             println!();
 
@@ -166,6 +224,16 @@ fn validate_and_report(message: &str, config: &ValidationConfig, verbose: bool) 
             }
         }
         Err(e) => {
+            if *format == OutputFormat::Json {
+                let errors_json = error_messages(&e)
+                    .iter()
+                    .map(|m| format!("\"{}\"", json_escape(m)))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                println!(r#"{{"valid":false,"errors":[{}]}}"#, errors_json);
+                process::exit(1);
+            }
+
             print_color("❌ Invalid commit message: ", Color::Red, true, true);
             eprintln!("{}", e);
             if verbose {
