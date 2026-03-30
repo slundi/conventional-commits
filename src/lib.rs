@@ -118,6 +118,22 @@ impl ConventionalCommit {
     }
 }
 
+/// A list of commit validation errors, used when multiple issues are detected simultaneously.
+#[derive(Debug)]
+pub struct ValidationErrors(pub Vec<CommitValidationError>);
+
+impl fmt::Display for ValidationErrors {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for (i, e) in self.0.iter().enumerate() {
+            if i > 0 {
+                writeln!(f)?;
+            }
+            write!(f, "  - {}", e)?;
+        }
+        Ok(())
+    }
+}
+
 /// Errors that can occur when validating commit messages
 #[derive(Error, Debug)]
 pub enum CommitValidationError {
@@ -156,6 +172,9 @@ pub enum CommitValidationError {
 
     #[error("Invalid issue pattern regex '{0}': {1}")]
     InvalidIssuePattern(String, String),
+
+    #[error("Multiple validation errors:\n{0}")]
+    Multiple(ValidationErrors),
 }
 
 /// Configuration for commit validation
@@ -338,71 +357,62 @@ pub fn validate_commit_with_config(
     let lines: Vec<&str> = message.lines().collect();
     let header = lines[0];
 
+    // Header parsing fails fast — without a parseable header we cannot continue.
     let (type_str, scope, breaking_change, description) = parse_header(header)?;
-    let type_str = type_str.as_str();
-    let description = description.as_str();
+
+    let mut errors: Vec<CommitValidationError> = Vec::new();
 
     // Validate Blank Line Rule:
     // If there is more than one line, the second line MUST be empty.
     if lines.len() > 1 && !lines[1].trim().is_empty() {
-        return Err(CommitValidationError::MissingBlankLine);
+        errors.push(CommitValidationError::MissingBlankLine);
     }
 
     // Validate commit type
-    let commit_type = CommitType::from(type_str);
+    let commit_type = CommitType::from(type_str.as_str());
     if !config.allow_custom_types {
         if let CommitType::Custom(_) = commit_type {
-            return Err(CommitValidationError::UnknownType(type_str.to_string()));
+            errors.push(CommitValidationError::UnknownType(type_str.clone()));
         }
     }
 
     // Validate scope against allowed list (only when a scope is present)
     if let (Some(ref s), Some(ref allowed)) = (&scope, &config.allowed_scopes) {
         if !allowed.iter().any(|a| a == s) {
-            return Err(CommitValidationError::ScopeNotAllowed(s.clone()));
+            errors.push(CommitValidationError::ScopeNotAllowed(s.clone()));
         }
     }
 
     // Validate description
-    if description.is_empty() {
-        return Err(CommitValidationError::MissingDescription);
-    }
-
-    if config.enforce_lowercase_description && !description.chars().next().unwrap().is_lowercase() {
-        return Err(CommitValidationError::DescriptionNotLowercase);
+    if config.enforce_lowercase_description {
+        if let Some(first) = description.chars().next() {
+            if !first.is_lowercase() {
+                errors.push(CommitValidationError::DescriptionNotLowercase);
+            }
+        }
     }
 
     if config.disallow_description_period && description.ends_with('.') {
-        return Err(CommitValidationError::DescriptionEndsWithPeriod);
+        errors.push(CommitValidationError::DescriptionEndsWithPeriod);
     }
 
     if description.len() > config.max_description_length {
-        return Err(CommitValidationError::DescriptionTooLong);
+        errors.push(CommitValidationError::DescriptionTooLong);
     }
 
     // Parse body and footers
-    let body_parts: Vec<String> = Vec::new();
-    let mut body_lines = Vec::new();
-    let mut footer_lines = Vec::new();
+    let mut body_lines: Vec<String> = Vec::new();
+    let mut footer_lines: Vec<String> = Vec::new();
     let mut is_breaking = breaking_change;
 
     if lines.len() > 2 {
-        let iter = lines[2..].iter().peekable();
-
-        // Separate Body from Footers
-        for line in iter {
-            // If the current line looks like a footer AND there are no non-footer lines after it
+        for line in lines[2..].iter() {
             if is_breaking_footer(line) || is_footer(line) {
-                // We found a potential footer.
-                // A stricter tool would ensure once footers start, body text cannot reappear.
                 footer_lines.push(line.to_string());
-
                 if is_breaking_footer(line) {
                     is_breaking = true;
                 }
             } else {
-                // If we already found "footers" but then find a normal line,
-                // the previous "footers" were actually just part of the body.
                 if !footer_lines.is_empty() {
                     body_lines.append(&mut footer_lines);
                 }
@@ -416,13 +426,18 @@ pub fn validate_commit_with_config(
         let re = Regex::new(pattern).map_err(|e| {
             CommitValidationError::InvalidIssuePattern(pattern.clone(), e.to_string())
         })?;
-        let matched = footer_lines.iter().any(|f| re.is_match(f));
-        if !matched {
-            return Err(CommitValidationError::MissingIssueRef(pattern.clone()));
+        if !footer_lines.iter().any(|f| re.is_match(f)) {
+            errors.push(CommitValidationError::MissingIssueRef(pattern.clone()));
         }
     }
 
-    let body = if body_parts.is_empty() {
+    if errors.len() == 1 {
+        return Err(errors.remove(0));
+    } else if errors.len() > 1 {
+        return Err(CommitValidationError::Multiple(ValidationErrors(errors)));
+    }
+
+    let body = if body_lines.is_empty() {
         None
     } else {
         Some(body_lines.join("\n").trim().to_string())
@@ -432,7 +447,7 @@ pub fn validate_commit_with_config(
         commit_type,
         scope,
         breaking_change: is_breaking,
-        description: description.to_string(),
+        description,
         body,
         footers: footer_lines,
     })
@@ -732,5 +747,27 @@ mod tests {
         let cfg = config_with_issue_pattern(r"^Closes: #\d+");
         let msg = "feat: add feature\n\nReviewed-by: Bob\nCloses: #42";
         assert!(validate_commit_with_config(msg, &cfg).is_ok());
+    }
+
+    // ---- multiple-errors tests ----
+
+    #[test]
+    fn test_multiple_errors_collected() {
+        // Uppercase first letter + trailing period → two description errors reported at once
+        let err = validate_commit("feat: Add thing.").unwrap_err();
+        assert!(
+            matches!(err, CommitValidationError::Multiple(_)),
+            "expected Multiple, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_single_error_not_wrapped_in_multiple() {
+        // Only one violation should not be wrapped in Multiple
+        let err = validate_commit("feat: Add thing").unwrap_err();
+        assert!(
+            matches!(err, CommitValidationError::DescriptionNotLowercase),
+            "expected DescriptionNotLowercase, got: {err}"
+        );
     }
 }
