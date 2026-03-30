@@ -43,7 +43,14 @@ pub(crate) enum Commands {
     /// Show commit types information
     Types,
     /// Install as a git commit-msg hook
-    InstallHook, // <--- New variant
+    InstallHook(InstallHookArgs),
+}
+
+#[derive(Args)]
+pub(crate) struct InstallHookArgs {
+    /// Overwrite an existing hook without prompting
+    #[arg(long)]
+    pub(crate) force: bool,
 }
 
 #[derive(Args)]

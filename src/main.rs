@@ -8,11 +8,11 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::cli::{show_examples, show_help_hint, show_types, Cli, Commands};
 
-fn install_git_hook() -> std::io::Result<()> {
+fn install_git_hook(base_dir: &std::path::Path, force: bool) -> std::io::Result<()> {
     use std::fs;
     use std::os::unix::fs::PermissionsExt; // Note: For Linux/macOS
 
-    let hook_dir = std::path::Path::new(".git/hooks");
+    let hook_dir = base_dir.join(".git/hooks");
     if !hook_dir.exists() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
@@ -21,6 +21,13 @@ fn install_git_hook() -> std::io::Result<()> {
     }
 
     let hook_path = hook_dir.join("commit-msg");
+
+    if hook_path.exists() && !force {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::AlreadyExists,
+            ".git/hooks/commit-msg already exists. Use --force to overwrite.",
+        ));
+    }
 
     // The script reads the commit message file ($1) and pipes it to commit-check
     let hook_content = r#"#!/bin/sh
@@ -71,8 +78,9 @@ fn main() {
         }
         Some(Commands::Examples) => show_examples(),
         Some(Commands::Types) => show_types(),
-        Some(Commands::InstallHook) => {
-            if let Err(e) = install_git_hook() {
+        Some(Commands::InstallHook(args)) => {
+            let base_dir = std::path::Path::new(".");
+            if let Err(e) = install_git_hook(base_dir, args.force) {
                 eprintln!("❌ Failed to install hook: {}", e);
                 process::exit(1);
             }
@@ -148,6 +156,17 @@ fn validate_and_report(message: &str, config: &ValidationConfig, verbose: bool) 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static COUNTER: AtomicUsize = AtomicUsize::new(0);
+
+    fn make_tmp_dir() -> std::path::PathBuf {
+        let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+        let dir =
+            std::env::temp_dir().join(format!("cc_hook_test_{}_{}", std::process::id(), id));
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
 
     #[test]
     fn test_get_commit_message_from_arg() {
@@ -165,5 +184,58 @@ mod tests {
     fn test_get_commit_message_precedence() {
         let message = get_commit_message(Some("arg message"), Some("cli message"));
         assert_eq!(message, "arg message");
+    }
+
+    #[test]
+    fn test_install_hook_no_git_dir() {
+        let tmp = make_tmp_dir();
+        let result = install_git_hook(&tmp, false);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::NotFound);
+        std::fs::remove_dir_all(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_install_hook_success() {
+        let tmp = make_tmp_dir();
+        std::fs::create_dir_all(tmp.join(".git/hooks")).unwrap();
+
+        let result = install_git_hook(&tmp, false);
+        assert!(result.is_ok());
+        assert!(tmp.join(".git/hooks/commit-msg").exists());
+
+        std::fs::remove_dir_all(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_install_hook_existing_without_force() {
+        let tmp = make_tmp_dir();
+        std::fs::create_dir_all(tmp.join(".git/hooks")).unwrap();
+        std::fs::write(tmp.join(".git/hooks/commit-msg"), "existing hook").unwrap();
+
+        let result = install_git_hook(&tmp, false);
+        assert!(result.is_err());
+        assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::AlreadyExists);
+
+        // Original hook must be untouched
+        let content = std::fs::read_to_string(tmp.join(".git/hooks/commit-msg")).unwrap();
+        assert_eq!(content, "existing hook");
+
+        std::fs::remove_dir_all(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_install_hook_existing_with_force() {
+        let tmp = make_tmp_dir();
+        std::fs::create_dir_all(tmp.join(".git/hooks")).unwrap();
+        std::fs::write(tmp.join(".git/hooks/commit-msg"), "existing hook").unwrap();
+
+        let result = install_git_hook(&tmp, true);
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(tmp.join(".git/hooks/commit-msg")).unwrap();
+        assert!(content.contains("commit-check"));
+
+        std::fs::remove_dir_all(&tmp).unwrap();
     }
 }

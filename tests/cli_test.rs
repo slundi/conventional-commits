@@ -1,8 +1,18 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 fn get_test_command() -> Command {
     Command::cargo_bin("commit-check").expect("Failed to find commit-check binary")
+}
+
+fn make_tmp_git_dir() -> std::path::PathBuf {
+    let id = COUNTER.fetch_add(1, Ordering::SeqCst);
+    let dir = std::env::temp_dir().join(format!("cc_cli_test_{}_{}", std::process::id(), id));
+    std::fs::create_dir_all(dir.join(".git/hooks")).unwrap();
+    dir
 }
 
 #[test]
@@ -90,4 +100,57 @@ fn test_stdin_input() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Valid conventional commit"));
+}
+
+#[test]
+fn test_install_hook_command() {
+    let tmp = make_tmp_git_dir();
+
+    get_test_command()
+        .current_dir(&tmp)
+        .arg("install-hook")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Git hook installed successfully"));
+
+    assert!(tmp.join(".git/hooks/commit-msg").exists());
+    std::fs::remove_dir_all(&tmp).unwrap();
+}
+
+#[test]
+fn test_install_hook_already_exists_fails() {
+    let tmp = make_tmp_git_dir();
+    std::fs::write(tmp.join(".git/hooks/commit-msg"), "existing hook").unwrap();
+
+    get_test_command()
+        .current_dir(&tmp)
+        .arg("install-hook")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("already exists"));
+
+    // Existing hook must not be overwritten
+    let content = std::fs::read_to_string(tmp.join(".git/hooks/commit-msg")).unwrap();
+    assert_eq!(content, "existing hook");
+
+    std::fs::remove_dir_all(&tmp).unwrap();
+}
+
+#[test]
+fn test_install_hook_force_overwrites_existing() {
+    let tmp = make_tmp_git_dir();
+    std::fs::write(tmp.join(".git/hooks/commit-msg"), "existing hook").unwrap();
+
+    get_test_command()
+        .current_dir(&tmp)
+        .arg("install-hook")
+        .arg("--force")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Git hook installed successfully"));
+
+    let content = std::fs::read_to_string(tmp.join(".git/hooks/commit-msg")).unwrap();
+    assert!(content.contains("commit-check"));
+
+    std::fs::remove_dir_all(&tmp).unwrap();
 }
