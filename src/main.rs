@@ -79,8 +79,9 @@ fn apply_fix_if_requested(message: String, fix: bool) -> String {
     let fixed = fix_commit_message(&message);
     if fixed != message {
         print_color("Fixed: ", Color::Cyan, true, false);
-        println!("{}", fixed);
     }
+    // Always print when --fix is active so the result is capturable by scripts
+    println!("{}", fixed);
     fixed
 }
 
