@@ -32,6 +32,11 @@ pub(crate) struct Cli {
     /// Enable verbose output
     #[arg(short, long)]
     pub(crate) verbose: bool,
+
+    /// Automatically fix common mistakes (missing space, uppercase first letter, trailing period)
+    /// and print the corrected message
+    #[arg(long)]
+    pub(crate) fix: bool,
 }
 
 #[derive(Subcommand)]

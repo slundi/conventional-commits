@@ -103,6 +103,51 @@ fn test_stdin_input() {
 }
 
 #[test]
+fn test_fix_missing_space() {
+    get_test_command()
+        .arg("--message")
+        .arg("feat:Add thing.")
+        .arg("--fix")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("feat: add thing"));
+}
+
+#[test]
+fn test_fix_uppercase_and_period() {
+    get_test_command()
+        .arg("--message")
+        .arg("fix: Resolve bug.")
+        .arg("--fix")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("fix: resolve bug"));
+}
+
+#[test]
+fn test_fix_already_valid_no_fixed_line() {
+    get_test_command()
+        .arg("--message")
+        .arg("feat: add thing")
+        .arg("--fix")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Fixed:").not());
+}
+
+#[test]
+fn test_fix_invalid_even_after_fix() {
+    // A completely unparseable message can't be fixed — should still fail
+    get_test_command()
+        .arg("--message")
+        .arg("not a conventional commit")
+        .arg("--fix")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Invalid commit message"));
+}
+
+#[test]
 fn test_install_hook_command() {
     let tmp = make_tmp_git_dir();
 

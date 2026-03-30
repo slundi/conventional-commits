@@ -1,7 +1,7 @@
 mod cli;
 
 use clap::Parser;
-use conventional_commits::{validate_commit_with_config, ValidationConfig};
+use conventional_commits::{fix_commit_message, validate_commit_with_config, ValidationConfig};
 use std::io::{self, Read, Write};
 use std::process;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
@@ -61,6 +61,18 @@ fn print_color(message: &str, color: Color, is_bold: bool, is_stderr: bool) {
     let _ = stream.reset();
 }
 
+fn apply_fix_if_requested(message: String, fix: bool) -> String {
+    if !fix {
+        return message;
+    }
+    let fixed = fix_commit_message(&message);
+    if fixed != message {
+        print_color("Fixed: ", Color::Cyan, true, false);
+        println!("{}", fixed);
+    }
+    fixed
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -74,6 +86,7 @@ fn main() {
     match &cli.command {
         Some(Commands::Validate(args)) => {
             let message = get_commit_message(args.message.as_deref(), cli.message.as_deref());
+            let message = apply_fix_if_requested(message, cli.fix);
             validate_and_report(&message, &config, cli.verbose);
         }
         Some(Commands::Examples) => show_examples(),
@@ -89,6 +102,7 @@ fn main() {
         None => {
             // Default behavior: validate commit message
             let message = get_commit_message(None, cli.message.as_deref());
+            let message = apply_fix_if_requested(message, cli.fix);
             validate_and_report(&message, &config, cli.verbose);
         }
     }
@@ -162,8 +176,7 @@ mod tests {
 
     fn make_tmp_dir() -> std::path::PathBuf {
         let id = COUNTER.fetch_add(1, Ordering::SeqCst);
-        let dir =
-            std::env::temp_dir().join(format!("cc_hook_test_{}_{}", std::process::id(), id));
+        let dir = std::env::temp_dir().join(format!("cc_hook_test_{}_{}", std::process::id(), id));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -215,7 +228,10 @@ mod tests {
 
         let result = install_git_hook(&tmp, false);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::AlreadyExists);
+        assert_eq!(
+            result.unwrap_err().kind(),
+            std::io::ErrorKind::AlreadyExists
+        );
 
         // Original hook must be untouched
         let content = std::fs::read_to_string(tmp.join(".git/hooks/commit-msg")).unwrap();

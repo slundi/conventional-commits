@@ -1,15 +1,6 @@
 # Roadmap
 
-## 1. The "Fix-it" Mode (`--fix`)
-
-One of the most annoying things about git hooks is when they fail for a trivial reason (like a missing space or a trailing period).
-* **Feature**: Add a flag that automatically reformats the message if it's "close enough."
-* **Action**: If a user writes `feat:Add thing.`, the tool could output the corrected version: `feat: add thing.`
-* **Why it shines**: It moves the tool from being a "blocker" to being a "helper."
-* **Complexity**: Medium. We need to write logic that identifies common mistakes (missing space, accidental period, uppercase first letter) and applies string transformations.
-* **Weight**: Zero. This is pure logic; it requires no new crates.
-
-## 2. Gitea/GitHub/Jira Integration (Issue Refs)
+## 1. Gitea/GitHub/Jira Integration (Issue Refs)
 
 The Conventional Commits spec often includes a footer for issue tracking (e.g., `Refs: #123` or `Fixes: PROJ-456`).
 * **Feature**: Add an `--issue-pattern` regex arg.
@@ -19,7 +10,7 @@ The Conventional Commits spec often includes a footer for issue tracking (e.g., 
 * **Weight**: Zero. We are already paying the "cost" of the `regex` crate.
 * **Verdict**: Great "pro" feature. It’s essentially "free" from a performance standpoint.
 
-## 3. Commit Message Template Generator
+## 2. Commit Message Template Generator
 
 Sometimes developers forget the `types` even with custom types command.
 * **Feature**: A command like `commit-check init-msg`.
@@ -28,7 +19,7 @@ Sometimes developers forget the `types` even with custom types command.
 * **Weight**: Zero.
 * **Verdict**: Nice-to-have, but perhaps less "lightweight" in terms of UX. Most developers prefer their editor to handle templates.
 
-## 4. Workspace/Monorepo Support (`--scope-enum`)
+## 3. Workspace/Monorepo Support (`--scope-enum`)
 
 In monorepos (like Nx or Turborepo), teams often want to restrict "scopes" to the actual package names.
 * **Feature**: Just like `--types`, add `--scopes "api,client,shared"`.
@@ -38,7 +29,7 @@ In monorepos (like Nx or Turborepo), teams often want to restrict "scopes" to th
 * **Weight**: Zero.
 * **Verdict**: **High Priority**. For monorepo users, this is often a dealbreaker. It keeps the binary tiny while supporting complex projects.
 
-## 5. Summary Statistics (`--stats`)
+## 4. Summary Statistics (`--stats`)
 
 If we are running this in a CI pipeline over a range of commits (e.g., git log main..feature), it’s nice to see a summary.
 * **Feature**: `commit-check check-range main..HEAD`.
@@ -47,7 +38,7 @@ If we are running this in a CI pipeline over a range of commits (e.g., git log m
 * **Weight**: Medium. We might be tempted to pull in a crate like `git2` (which is very heavy) or use `std::process::Command` to call the system `git` (lightweight but requires git to be installed).
 * **Verdict**: Use `std::process::Command` to keep it light, but avoid `git2` at all costs we you want to stay under 1MB.
 
-## 6. Configuration File (.commit-check.toml)
+## 5. Configuration File (.commit-check.toml)
 
 While CLI args are great for CI, having a persistent config file makes local development easier.
 * Feature: Automatically look for a `.commit-check.toml` in the repo root.
