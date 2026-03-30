@@ -21,6 +21,10 @@ pub(crate) struct Cli {
     #[arg(long, default_value = "72")]
     pub(crate) max_length: usize,
 
+    /// Minimum length for commit description (0 = no minimum)
+    #[arg(long, default_value = "0")]
+    pub(crate) min_length: usize,
+
     /// Enforce lowercase description
     #[arg(long, default_value = "true")]
     pub(crate) enforce_lowercase: bool,

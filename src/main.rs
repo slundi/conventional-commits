@@ -85,6 +85,7 @@ fn main() {
 
     let config = ValidationConfig {
         max_description_length: cli.max_length,
+        min_description_length: cli.min_length,
         allow_custom_types: cli.allow_custom_types,
         enforce_lowercase_description: cli.enforce_lowercase,
         disallow_description_period: cli.disallow_period,

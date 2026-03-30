@@ -66,6 +66,7 @@ fn main() {
         disallow_description_period: false,   // Allow periods
         allowed_scopes: None,
         issue_pattern: None,
+        min_description_length: 0,
     };
 
     let test_commits = vec![

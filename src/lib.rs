@@ -158,6 +158,9 @@ pub enum CommitValidationError {
     #[error("Description is too long (max 72 characters)")]
     DescriptionTooLong,
 
+    #[error("Description is too short (min {0} characters)")]
+    DescriptionTooShort(usize),
+
     #[error("Commit type '{0}' is not recognized")]
     UnknownType(String),
 
@@ -192,6 +195,8 @@ pub struct ValidationConfig {
     pub allowed_scopes: Option<Vec<String>>,
     /// Optional regex pattern that at least one footer must match (e.g. `r"^Refs: #\d+"`)
     pub issue_pattern: Option<String>,
+    /// Minimum length for the description (0 means no minimum beyond non-empty)
+    pub min_description_length: usize,
 }
 
 impl Default for ValidationConfig {
@@ -203,6 +208,7 @@ impl Default for ValidationConfig {
             disallow_description_period: true,
             allowed_scopes: None,
             issue_pattern: None,
+            min_description_length: 0,
         }
     }
 }
@@ -398,6 +404,12 @@ pub fn validate_commit_with_config(
 
     if description.len() > config.max_description_length {
         errors.push(CommitValidationError::DescriptionTooLong);
+    }
+
+    if config.min_description_length > 0 && description.len() < config.min_description_length {
+        errors.push(CommitValidationError::DescriptionTooShort(
+            config.min_description_length,
+        ));
     }
 
     // Parse body and footers
@@ -759,6 +771,36 @@ mod tests {
             matches!(err, CommitValidationError::Multiple(_)),
             "expected Multiple, got: {err}"
         );
+    }
+
+    // ---- min-description-length tests ----
+
+    #[test]
+    fn test_min_description_length_too_short() {
+        let cfg = ValidationConfig {
+            min_description_length: 20,
+            ..ValidationConfig::default()
+        };
+        let err = validate_commit_with_config("feat: add thing", &cfg).unwrap_err();
+        assert!(
+            matches!(err, CommitValidationError::DescriptionTooShort(20)),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_min_description_length_ok() {
+        let cfg = ValidationConfig {
+            min_description_length: 5,
+            ..ValidationConfig::default()
+        };
+        assert!(validate_commit_with_config("feat: add thing", &cfg).is_ok());
+    }
+
+    #[test]
+    fn test_min_description_length_zero_default() {
+        // Default config has no minimum — single-char description passes
+        assert!(validate_commit("fix: x").is_ok());
     }
 
     #[test]
