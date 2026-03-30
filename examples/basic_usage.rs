@@ -64,6 +64,7 @@ fn main() {
         allow_custom_types: false,            // Only standard types
         enforce_lowercase_description: false, // Allow uppercase
         disallow_description_period: false,   // Allow periods
+        allowed_scopes: None,
     };
 
     let test_commits = vec![

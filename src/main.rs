@@ -76,11 +76,19 @@ fn apply_fix_if_requested(message: String, fix: bool) -> String {
 fn main() {
     let cli = Cli::parse();
 
+    let allowed_scopes = cli.scopes.as_deref().map(|s| {
+        s.split(',')
+            .map(|scope| scope.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+    });
+
     let config = ValidationConfig {
         max_description_length: cli.max_length,
         allow_custom_types: cli.allow_custom_types,
         enforce_lowercase_description: cli.enforce_lowercase,
         disallow_description_period: cli.disallow_period,
+        allowed_scopes,
     };
 
     match &cli.command {

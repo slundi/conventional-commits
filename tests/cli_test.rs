@@ -182,6 +182,41 @@ fn test_install_hook_already_exists_fails() {
 }
 
 #[test]
+fn test_scopes_allowed() {
+    get_test_command()
+        .arg("--message")
+        .arg("feat(api): add endpoint")
+        .arg("--scopes")
+        .arg("api,client,shared")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Valid conventional commit"));
+}
+
+#[test]
+fn test_scopes_rejected() {
+    get_test_command()
+        .arg("--message")
+        .arg("feat(ui): add button")
+        .arg("--scopes")
+        .arg("api,client,shared")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("not in the allowed scopes"));
+}
+
+#[test]
+fn test_no_scope_passes_with_scopes_flag() {
+    get_test_command()
+        .arg("--message")
+        .arg("feat: add thing")
+        .arg("--scopes")
+        .arg("api,client")
+        .assert()
+        .success();
+}
+
+#[test]
 fn test_install_hook_force_overwrites_existing() {
     let tmp = make_tmp_git_dir();
     std::fs::write(tmp.join(".git/hooks/commit-msg"), "existing hook").unwrap();

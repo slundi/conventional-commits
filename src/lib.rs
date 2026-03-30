@@ -147,6 +147,9 @@ pub enum CommitValidationError {
 
     #[error("A blank line is required between the header and the body")]
     MissingBlankLine,
+
+    #[error("Scope '{0}' is not in the allowed scopes list")]
+    ScopeNotAllowed(String),
 }
 
 /// Configuration for commit validation
@@ -160,6 +163,8 @@ pub struct ValidationConfig {
     pub enforce_lowercase_description: bool,
     /// Whether to disallow period at end of description
     pub disallow_description_period: bool,
+    /// Optional list of allowed scopes; if `None`, any scope is accepted
+    pub allowed_scopes: Option<Vec<String>>,
 }
 
 impl Default for ValidationConfig {
@@ -169,6 +174,7 @@ impl Default for ValidationConfig {
             allow_custom_types: true,
             enforce_lowercase_description: true,
             disallow_description_period: true,
+            allowed_scopes: None,
         }
     }
 }
@@ -245,6 +251,13 @@ pub fn validate_commit_with_config(
     if !config.allow_custom_types {
         if let CommitType::Custom(_) = commit_type {
             return Err(CommitValidationError::UnknownType(type_str.to_string()));
+        }
+    }
+
+    // Validate scope against allowed list (only when a scope is present)
+    if let (Some(ref s), Some(ref allowed)) = (&scope, &config.allowed_scopes) {
+        if !allowed.iter().any(|a| a == s) {
+            return Err(CommitValidationError::ScopeNotAllowed(s.clone()));
         }
     }
 
@@ -506,5 +519,44 @@ mod tests {
     fn test_fix_unparseable_returns_original() {
         let msg = "not a conventional commit at all";
         assert_eq!(fix_commit_message(msg), msg);
+    }
+
+    // ---- scope-enum tests ----
+
+    fn config_with_scopes(scopes: &[&str]) -> ValidationConfig {
+        ValidationConfig {
+            allowed_scopes: Some(scopes.iter().map(|s| s.to_string()).collect()),
+            ..ValidationConfig::default()
+        }
+    }
+
+    #[test]
+    fn test_scope_allowed() {
+        let cfg = config_with_scopes(&["api", "client"]);
+        assert!(validate_commit_with_config("feat(api): add endpoint", &cfg).is_ok());
+        assert!(validate_commit_with_config("fix(client): handle timeout", &cfg).is_ok());
+    }
+
+    #[test]
+    fn test_scope_not_allowed() {
+        let cfg = config_with_scopes(&["api", "client"]);
+        let err = validate_commit_with_config("feat(ui): add button", &cfg).unwrap_err();
+        assert!(
+            matches!(err, CommitValidationError::ScopeNotAllowed(ref s) if s == "ui"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_no_scope_passes_when_scopes_restricted() {
+        // Commits without any scope are always accepted even when the list is set
+        let cfg = config_with_scopes(&["api"]);
+        assert!(validate_commit_with_config("feat: add thing", &cfg).is_ok());
+    }
+
+    #[test]
+    fn test_no_scope_restriction_accepts_anything() {
+        // Default config (allowed_scopes = None) accepts any scope
+        assert!(validate_commit("feat(whatever): add thing").is_ok());
     }
 }

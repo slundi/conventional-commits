@@ -19,17 +19,7 @@ Sometimes developers forget the `types` even with custom types command.
 * **Weight**: Zero.
 * **Verdict**: Nice-to-have, but perhaps less "lightweight" in terms of UX. Most developers prefer their editor to handle templates.
 
-## 3. Workspace/Monorepo Support (`--scope-enum`)
-
-In monorepos (like Nx or Turborepo), teams often want to restrict "scopes" to the actual package names.
-* **Feature**: Just like `--types`, add `--scopes "api,client,shared"`.
-* **Action**: If a user writes `feat(ui): ...` but `ui` isn't in the list, it fails.
-* **Why it shines**: Prevents "scope creep" where developers invent new scope names for every commit.
-* **Complexity**: Low. Mirror the logic I implemented for `allowed_types`.
-* **Weight**: Zero.
-* **Verdict**: **High Priority**. For monorepo users, this is often a dealbreaker. It keeps the binary tiny while supporting complex projects.
-
-## 4. Summary Statistics (`--stats`)
+## 3. Summary Statistics (`--stats`)
 
 If we are running this in a CI pipeline over a range of commits (e.g., git log main..feature), it’s nice to see a summary.
 * **Feature**: `commit-check check-range main..HEAD`.
@@ -38,7 +28,7 @@ If we are running this in a CI pipeline over a range of commits (e.g., git log m
 * **Weight**: Medium. We might be tempted to pull in a crate like `git2` (which is very heavy) or use `std::process::Command` to call the system `git` (lightweight but requires git to be installed).
 * **Verdict**: Use `std::process::Command` to keep it light, but avoid `git2` at all costs we you want to stay under 1MB.
 
-## 5. Configuration File (.commit-check.toml)
+## 4. Configuration File (.commit-check.toml)
 
 While CLI args are great for CI, having a persistent config file makes local development easier.
 * Feature: Automatically look for a `.commit-check.toml` in the repo root.

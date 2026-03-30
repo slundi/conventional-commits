@@ -37,6 +37,11 @@ pub(crate) struct Cli {
     /// and print the corrected message
     #[arg(long)]
     pub(crate) fix: bool,
+
+    /// Comma-separated list of allowed scopes (e.g. "api,client,shared").
+    /// When set, commits with a scope not in this list are rejected.
+    #[arg(long, value_name = "SCOPES")]
+    pub(crate) scopes: Option<String>,
 }
 
 #[derive(Subcommand)]
