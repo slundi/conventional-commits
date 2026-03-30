@@ -89,6 +89,7 @@ fn main() {
         enforce_lowercase_description: cli.enforce_lowercase,
         disallow_description_period: cli.disallow_period,
         allowed_scopes,
+        issue_pattern: cli.issue_pattern,
     };
 
     match &cli.command {

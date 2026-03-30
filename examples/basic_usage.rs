@@ -65,6 +65,7 @@ fn main() {
         enforce_lowercase_description: false, // Allow uppercase
         disallow_description_period: false,   // Allow periods
         allowed_scopes: None,
+        issue_pattern: None,
     };
 
     let test_commits = vec![

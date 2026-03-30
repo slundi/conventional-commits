@@ -42,6 +42,11 @@ pub(crate) struct Cli {
     /// When set, commits with a scope not in this list are rejected.
     #[arg(long, value_name = "SCOPES")]
     pub(crate) scopes: Option<String>,
+
+    /// Regex pattern that at least one footer must match (e.g. "^Refs: #\d+" or "^Fixes: [A-Z]+-\d+").
+    /// Ensures commits are linked to an issue or ticket.
+    #[arg(long, value_name = "PATTERN")]
+    pub(crate) issue_pattern: Option<String>,
 }
 
 #[derive(Subcommand)]

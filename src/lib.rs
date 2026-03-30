@@ -150,6 +150,12 @@ pub enum CommitValidationError {
 
     #[error("Scope '{0}' is not in the allowed scopes list")]
     ScopeNotAllowed(String),
+
+    #[error("No footer matches the required issue pattern '{0}'")]
+    MissingIssueRef(String),
+
+    #[error("Invalid issue pattern regex '{0}': {1}")]
+    InvalidIssuePattern(String, String),
 }
 
 /// Configuration for commit validation
@@ -165,6 +171,8 @@ pub struct ValidationConfig {
     pub disallow_description_period: bool,
     /// Optional list of allowed scopes; if `None`, any scope is accepted
     pub allowed_scopes: Option<Vec<String>>,
+    /// Optional regex pattern that at least one footer must match (e.g. `r"^Refs: #\d+"`)
+    pub issue_pattern: Option<String>,
 }
 
 impl Default for ValidationConfig {
@@ -175,6 +183,7 @@ impl Default for ValidationConfig {
             enforce_lowercase_description: true,
             disallow_description_period: true,
             allowed_scopes: None,
+            issue_pattern: None,
         }
     }
 }
@@ -306,6 +315,17 @@ pub fn validate_commit_with_config(
                 }
                 body_lines.push((*line).to_string());
             }
+        }
+    }
+
+    // Validate issue pattern: at least one footer must match
+    if let Some(ref pattern) = config.issue_pattern {
+        let re = Regex::new(pattern).map_err(|e| {
+            CommitValidationError::InvalidIssuePattern(pattern.clone(), e.to_string())
+        })?;
+        let matched = footer_lines.iter().any(|f| re.is_match(f));
+        if !matched {
+            return Err(CommitValidationError::MissingIssueRef(pattern.clone()));
         }
     }
 
@@ -558,5 +578,75 @@ mod tests {
     fn test_no_scope_restriction_accepts_anything() {
         // Default config (allowed_scopes = None) accepts any scope
         assert!(validate_commit("feat(whatever): add thing").is_ok());
+    }
+
+    // ---- issue-pattern tests ----
+
+    fn config_with_issue_pattern(pattern: &str) -> ValidationConfig {
+        ValidationConfig {
+            issue_pattern: Some(pattern.to_string()),
+            ..ValidationConfig::default()
+        }
+    }
+
+    #[test]
+    fn test_issue_pattern_matched_by_footer() {
+        let cfg = config_with_issue_pattern(r"^Refs: #\d+");
+        let msg = "feat: add feature\n\nRefs: #123";
+        assert!(validate_commit_with_config(msg, &cfg).is_ok());
+    }
+
+    #[test]
+    fn test_issue_pattern_matched_jira_style() {
+        let cfg = config_with_issue_pattern(r"^Fixes: [A-Z]+-\d+");
+        let msg = "fix: resolve crash\n\nFixes: PROJ-456";
+        assert!(validate_commit_with_config(msg, &cfg).is_ok());
+    }
+
+    #[test]
+    fn test_issue_pattern_no_matching_footer_fails() {
+        let cfg = config_with_issue_pattern(r"^Refs: #\d+");
+        let msg = "feat: add feature\n\nReviewed-by: Alice";
+        let err = validate_commit_with_config(msg, &cfg).unwrap_err();
+        assert!(
+            matches!(err, CommitValidationError::MissingIssueRef(_)),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_issue_pattern_no_footers_at_all_fails() {
+        let cfg = config_with_issue_pattern(r"^Refs: #\d+");
+        let msg = "feat: add feature";
+        let err = validate_commit_with_config(msg, &cfg).unwrap_err();
+        assert!(
+            matches!(err, CommitValidationError::MissingIssueRef(_)),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_issue_pattern_none_always_passes() {
+        // Default config has no issue_pattern — any valid commit passes
+        assert!(validate_commit("feat: add feature").is_ok());
+        assert!(validate_commit("fix: resolve crash\n\nReviewed-by: Alice").is_ok());
+    }
+
+    #[test]
+    fn test_issue_pattern_invalid_regex_returns_error() {
+        let cfg = config_with_issue_pattern(r"[invalid(");
+        let msg = "feat: add feature\n\nRefs: #123";
+        let err = validate_commit_with_config(msg, &cfg).unwrap_err();
+        assert!(
+            matches!(err, CommitValidationError::InvalidIssuePattern(_, _)),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_issue_pattern_one_of_multiple_footers_matches() {
+        let cfg = config_with_issue_pattern(r"^Closes: #\d+");
+        let msg = "feat: add feature\n\nReviewed-by: Bob\nCloses: #42";
+        assert!(validate_commit_with_config(msg, &cfg).is_ok());
     }
 }

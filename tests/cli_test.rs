@@ -217,6 +217,67 @@ fn test_no_scope_passes_with_scopes_flag() {
 }
 
 #[test]
+fn test_issue_pattern_valid_github_ref() {
+    get_test_command()
+        .arg("--message")
+        .arg("feat: add feature\n\nRefs: #123")
+        .arg("--issue-pattern")
+        .arg(r"^Refs: #\d+")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Valid conventional commit"));
+}
+
+#[test]
+fn test_issue_pattern_valid_jira_ref() {
+    get_test_command()
+        .arg("--message")
+        .arg("fix: resolve crash\n\nFixes: PROJ-456")
+        .arg("--issue-pattern")
+        .arg(r"^Fixes: [A-Z]+-\d+")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Valid conventional commit"));
+}
+
+#[test]
+fn test_issue_pattern_missing_footer_fails() {
+    get_test_command()
+        .arg("--message")
+        .arg("feat: add feature")
+        .arg("--issue-pattern")
+        .arg(r"^Refs: #\d+")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "No footer matches the required issue pattern",
+        ));
+}
+
+#[test]
+fn test_issue_pattern_non_matching_footer_fails() {
+    get_test_command()
+        .arg("--message")
+        .arg("feat: add feature\n\nReviewed-by: Alice")
+        .arg("--issue-pattern")
+        .arg(r"^Refs: #\d+")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "No footer matches the required issue pattern",
+        ));
+}
+
+#[test]
+fn test_issue_pattern_not_set_does_not_require_footer() {
+    get_test_command()
+        .arg("--message")
+        .arg("feat: add feature")
+        .assert()
+        .success();
+}
+
+#[test]
 fn test_install_hook_force_overwrites_existing() {
     let tmp = make_tmp_git_dir();
     std::fs::write(tmp.join(".git/hooks/commit-msg"), "existing hook").unwrap();
