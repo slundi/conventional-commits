@@ -10,7 +10,11 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
 use crate::cli::{show_examples, show_help_hint, show_types, Cli, Commands, OutputFormat};
 
-fn install_git_hook(base_dir: &std::path::Path, force: bool) -> std::io::Result<()> {
+fn install_git_hook(
+    base_dir: &std::path::Path,
+    force: bool,
+    extra_args: Option<&str>,
+) -> std::io::Result<()> {
     use std::fs;
     use std::os::unix::fs::PermissionsExt; // Note: For Linux/macOS
 
@@ -31,13 +35,18 @@ fn install_git_hook(base_dir: &std::path::Path, force: bool) -> std::io::Result<
         ));
     }
 
-    // The script reads the commit message file ($1) and pipes it to commit-check
-    let hook_content = r#"#!/bin/sh
-# commit-check git hook
-commit-check validate --message "$(cat "$1")" --verbose
-"#;
+    let extra = extra_args
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| format!(" {}", s))
+        .unwrap_or_default();
 
-    fs::write(&hook_path, hook_content)?;
+    // The script reads the commit message file ($1) and pipes it to commit-check
+    let hook_content = format!(
+        "#!/bin/sh\n# commit-check git hook\ncommit-check validate --message \"$(cat \"$1\")\" --verbose{}\n",
+        extra
+    );
+
+    fs::write(&hook_path, &hook_content)?;
 
     // Make the script executable (Unix-specific)
     let mut perms = fs::metadata(&hook_path)?.permissions();
@@ -108,7 +117,7 @@ fn main() {
         Some(Commands::Types) => show_types(),
         Some(Commands::InstallHook(args)) => {
             let base_dir = std::path::Path::new(".");
-            if let Err(e) = install_git_hook(base_dir, args.force) {
+            if let Err(e) = install_git_hook(base_dir, args.force, args.hook_args.as_deref()) {
                 eprintln!("❌ Failed to install hook: {}", e);
                 process::exit(1);
             }
@@ -281,7 +290,7 @@ mod tests {
     #[test]
     fn test_install_hook_no_git_dir() {
         let tmp = make_tmp_dir();
-        let result = install_git_hook(&tmp, false);
+        let result = install_git_hook(&tmp, false, None);
         assert!(result.is_err());
         assert_eq!(result.unwrap_err().kind(), std::io::ErrorKind::NotFound);
         std::fs::remove_dir_all(&tmp).unwrap();
@@ -292,7 +301,7 @@ mod tests {
         let tmp = make_tmp_dir();
         std::fs::create_dir_all(tmp.join(".git/hooks")).unwrap();
 
-        let result = install_git_hook(&tmp, false);
+        let result = install_git_hook(&tmp, false, None);
         assert!(result.is_ok());
         assert!(tmp.join(".git/hooks/commit-msg").exists());
 
@@ -305,7 +314,7 @@ mod tests {
         std::fs::create_dir_all(tmp.join(".git/hooks")).unwrap();
         std::fs::write(tmp.join(".git/hooks/commit-msg"), "existing hook").unwrap();
 
-        let result = install_git_hook(&tmp, false);
+        let result = install_git_hook(&tmp, false, None);
         assert!(result.is_err());
         assert_eq!(
             result.unwrap_err().kind(),
@@ -325,11 +334,28 @@ mod tests {
         std::fs::create_dir_all(tmp.join(".git/hooks")).unwrap();
         std::fs::write(tmp.join(".git/hooks/commit-msg"), "existing hook").unwrap();
 
-        let result = install_git_hook(&tmp, true);
+        let result = install_git_hook(&tmp, true, None);
         assert!(result.is_ok());
 
         let content = std::fs::read_to_string(tmp.join(".git/hooks/commit-msg")).unwrap();
         assert!(content.contains("commit-check"));
+
+        std::fs::remove_dir_all(&tmp).unwrap();
+    }
+
+    #[test]
+    fn test_install_hook_with_extra_args() {
+        let tmp = make_tmp_dir();
+        std::fs::create_dir_all(tmp.join(".git/hooks")).unwrap();
+
+        let result = install_git_hook(&tmp, false, Some("--scopes api,client --min-length 10"));
+        assert!(result.is_ok());
+
+        let content = std::fs::read_to_string(tmp.join(".git/hooks/commit-msg")).unwrap();
+        assert!(
+            content.contains("--scopes api,client --min-length 10"),
+            "hook should embed extra args: {content}"
+        );
 
         std::fs::remove_dir_all(&tmp).unwrap();
     }

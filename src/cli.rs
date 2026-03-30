@@ -88,6 +88,11 @@ pub(crate) struct InstallHookArgs {
     /// Overwrite an existing hook without prompting
     #[arg(long)]
     pub(crate) force: bool,
+
+    /// Extra arguments appended to the commit-check call inside the hook
+    /// (e.g. "--scopes api,client --issue-pattern '^Refs: #\\d+'")
+    #[arg(long, value_name = "ARGS")]
+    pub(crate) hook_args: Option<String>,
 }
 
 #[derive(Args)]
