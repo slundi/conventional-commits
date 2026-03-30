@@ -57,6 +57,10 @@ pub(crate) struct Cli {
     #[arg(long, value_name = "SCOPES")]
     pub(crate) scopes: Option<String>,
 
+    /// Enforce lowercase scope
+    #[arg(long, default_value = "false")]
+    pub(crate) enforce_lowercase_scope: bool,
+
     /// Regex pattern that at least one footer must match (e.g. "^Refs: #\d+" or "^Fixes: [A-Z]+-\d+").
     /// Ensures commits are linked to an issue or ticket.
     #[arg(long, value_name = "PATTERN")]

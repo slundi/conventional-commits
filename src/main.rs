@@ -90,6 +90,7 @@ fn main() {
         min_description_length: cli.min_length,
         allow_custom_types: cli.allow_custom_types,
         enforce_lowercase_description: cli.enforce_lowercase,
+        enforce_lowercase_scope: cli.enforce_lowercase_scope,
         disallow_description_period: cli.disallow_period,
         allowed_scopes,
         issue_pattern: cli.issue_pattern,

@@ -170,6 +170,9 @@ pub enum CommitValidationError {
     #[error("Scope '{0}' is not in the allowed scopes list")]
     ScopeNotAllowed(String),
 
+    #[error("Scope '{0}' must be lowercase")]
+    ScopeNotLowercase(String),
+
     #[error("No footer matches the required issue pattern '{0}'")]
     MissingIssueRef(String),
 
@@ -193,6 +196,8 @@ pub struct ValidationConfig {
     pub disallow_description_period: bool,
     /// Optional list of allowed scopes; if `None`, any scope is accepted
     pub allowed_scopes: Option<Vec<String>>,
+    /// Whether to enforce lowercase scope
+    pub enforce_lowercase_scope: bool,
     /// Optional regex pattern that at least one footer must match (e.g. `r"^Refs: #\d+"`)
     pub issue_pattern: Option<String>,
     /// Minimum length for the description (0 means no minimum beyond non-empty)
@@ -207,6 +212,7 @@ impl Default for ValidationConfig {
             enforce_lowercase_description: true,
             disallow_description_period: true,
             allowed_scopes: None,
+            enforce_lowercase_scope: false,
             issue_pattern: None,
             min_description_length: 0,
         }
@@ -382,10 +388,15 @@ pub fn validate_commit_with_config(
         }
     }
 
-    // Validate scope against allowed list (only when a scope is present)
-    if let (Some(ref s), Some(ref allowed)) = (&scope, &config.allowed_scopes) {
-        if !allowed.iter().any(|a| a == s) {
-            errors.push(CommitValidationError::ScopeNotAllowed(s.clone()));
+    // Validate scope (only when a scope is present)
+    if let Some(ref s) = scope {
+        if let Some(ref allowed) = config.allowed_scopes {
+            if !allowed.iter().any(|a| a == s) {
+                errors.push(CommitValidationError::ScopeNotAllowed(s.clone()));
+            }
+        }
+        if config.enforce_lowercase_scope && s.chars().any(|c| c.is_uppercase()) {
+            errors.push(CommitValidationError::ScopeNotLowercase(s.clone()));
         }
     }
 
@@ -759,6 +770,35 @@ mod tests {
         let cfg = config_with_issue_pattern(r"^Closes: #\d+");
         let msg = "feat: add feature\n\nReviewed-by: Bob\nCloses: #42";
         assert!(validate_commit_with_config(msg, &cfg).is_ok());
+    }
+
+    // ---- scope-lowercase tests ----
+
+    #[test]
+    fn test_scope_lowercase_enforced() {
+        let cfg = ValidationConfig {
+            enforce_lowercase_scope: true,
+            ..ValidationConfig::default()
+        };
+        let err = validate_commit_with_config("feat(API): add endpoint", &cfg).unwrap_err();
+        assert!(
+            matches!(err, CommitValidationError::ScopeNotLowercase(ref s) if s == "API"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_scope_lowercase_not_enforced_by_default() {
+        assert!(validate_commit("feat(API): add endpoint").is_ok());
+    }
+
+    #[test]
+    fn test_scope_already_lowercase_passes() {
+        let cfg = ValidationConfig {
+            enforce_lowercase_scope: true,
+            ..ValidationConfig::default()
+        };
+        assert!(validate_commit_with_config("feat(api): add endpoint", &cfg).is_ok());
     }
 
     // ---- multiple-errors tests ----
