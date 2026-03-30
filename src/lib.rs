@@ -188,6 +188,110 @@ impl Default for ValidationConfig {
     }
 }
 
+/// Parses a commit header strictly: requires exactly one space after `:`.
+fn parse_header(
+    header: &str,
+) -> Result<(String, Option<String>, bool, String), CommitValidationError> {
+    let bytes = header.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+        i += 1;
+    }
+    if i == 0 {
+        return Err(CommitValidationError::MissingType);
+    }
+    let type_str = header[..i].to_string();
+
+    let scope = if bytes.get(i) == Some(&b'(') {
+        i += 1;
+        let start = i;
+        while i < bytes.len() && bytes[i] != b')' {
+            i += 1;
+        }
+        if i >= bytes.len() {
+            return Err(CommitValidationError::InvalidFormat);
+        }
+        let sc = header[start..i].to_string();
+        i += 1;
+        Some(sc)
+    } else {
+        None
+    };
+
+    let breaking = if bytes.get(i) == Some(&b'!') {
+        i += 1;
+        true
+    } else {
+        false
+    };
+
+    if bytes.get(i) != Some(&b':') || bytes.get(i + 1) != Some(&b' ') {
+        return Err(CommitValidationError::InvalidFormat);
+    }
+    i += 2;
+
+    let description = header[i..].to_string();
+    if description.is_empty() {
+        return Err(CommitValidationError::MissingDescription);
+    }
+
+    Ok((type_str, scope, breaking, description))
+}
+
+/// Parses a commit header loosely: allows zero or more spaces after `:` (for auto-fix).
+fn parse_header_loose(header: &str) -> Option<(String, Option<String>, bool, String)> {
+    let bytes = header.as_bytes();
+    let mut i = 0;
+
+    while i < bytes.len() && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_') {
+        i += 1;
+    }
+    if i == 0 {
+        return None;
+    }
+    let type_str = header[..i].to_string();
+
+    let scope = if bytes.get(i) == Some(&b'(') {
+        i += 1;
+        let start = i;
+        while i < bytes.len() && bytes[i] != b')' {
+            i += 1;
+        }
+        if i >= bytes.len() {
+            return None;
+        }
+        let sc = header[start..i].to_string();
+        i += 1;
+        Some(sc)
+    } else {
+        None
+    };
+
+    let breaking = if bytes.get(i) == Some(&b'!') {
+        i += 1;
+        true
+    } else {
+        false
+    };
+
+    if bytes.get(i) != Some(&b':') {
+        return None;
+    }
+    i += 1;
+
+    while i < bytes.len() && bytes[i] == b' ' {
+        i += 1;
+    }
+
+    let description = header[i..].to_string();
+    if description.is_empty() {
+        return None;
+    }
+
+    Some((type_str, scope, breaking, description))
+}
+
 /// Validates a commit message according to Conventional Commits specification
 ///
 /// # Arguments
@@ -234,20 +338,9 @@ pub fn validate_commit_with_config(
     let lines: Vec<&str> = message.lines().collect();
     let header = lines[0];
 
-    // Parse the header using regex
-    let re = Regex::new(
-        r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?:\s+(?P<description>.+)$",
-    )
-    .unwrap();
-
-    let captures = re
-        .captures(header)
-        .ok_or(CommitValidationError::InvalidFormat)?;
-
-    let type_str = captures.name("type").unwrap().as_str();
-    let scope = captures.name("scope").map(|m| m.as_str().to_string());
-    let breaking_change = captures.name("breaking").is_some();
-    let description = captures.name("description").unwrap().as_str();
+    let (type_str, scope, breaking_change, description) = parse_header(header)?;
+    let type_str = type_str.as_str();
+    let description = description.as_str();
 
     // Validate Blank Line Rule:
     // If there is more than one line, the second line MUST be empty.
@@ -363,28 +456,14 @@ pub fn fix_commit_message(message: &str) -> String {
     let header = lines[0];
 
     // Loose regex: allow zero or more spaces after colon so we can fix missing space
-    let re = Regex::new(
-        r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?:\s*(?P<description>\S.*)$",
-    )
-    .unwrap();
-
-    let fixed_header = match re.captures(header) {
+    let fixed_header = match parse_header_loose(header) {
         None => return message.to_string(),
-        Some(caps) => {
-            let type_str = caps.name("type").unwrap().as_str();
-            let scope = caps.name("scope").map(|m| m.as_str());
-            let breaking = if caps.name("breaking").is_some() {
-                "!"
-            } else {
-                ""
-            };
-            let description = caps.name("description").unwrap().as_str();
-
-            let fixed_desc = fix_description(description);
-
+        Some((type_str, scope, breaking, description)) => {
+            let breaking_str = if breaking { "!" } else { "" };
+            let fixed_desc = fix_description(&description);
             match scope {
-                Some(s) => format!("{}({}){}: {}", type_str, s, breaking, fixed_desc),
-                None => format!("{}{}: {}", type_str, breaking, fixed_desc),
+                Some(s) => format!("{}({}){}: {}", type_str, s, breaking_str, fixed_desc),
+                None => format!("{}{}: {}", type_str, breaking_str, fixed_desc),
             }
         }
     };
@@ -411,11 +490,16 @@ fn fix_description(desc: &str) -> String {
     }
 }
 
-/// Helper to identify Git trailers (footers)
+/// Helper to identify Git trailers (footers): "Token: Value" or "Token #Value"
 fn is_footer(line: &str) -> bool {
-    // Basic check for "Token: Value" or "Token #Value"
-    let re = Regex::new(r"^[a-zA-Z-]+: .|^[a-zA-Z-]+ #").unwrap();
-    re.is_match(line)
+    let token_end = line
+        .find(|c: char| !c.is_ascii_alphabetic() && c != '-')
+        .unwrap_or(0);
+    if token_end == 0 {
+        return false;
+    }
+    let rest = &line[token_end..];
+    (rest.starts_with(": ") && rest.len() > 2) || rest.starts_with(" #")
 }
 
 fn is_breaking_footer(line: &str) -> bool {
