@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2026-03-30
+
+### Features
+- Add `--scopes` flag to restrict commits to an allowed scope list
+- Add `--fix` flag to auto-correct common commit message mistakes
+- Add `install-hook` command with `--force` flag and existing hook protection
+- Add colored messages output
+- Add `install` git hook command
+
+### Bug Fixes
+- Handle blank line rule and strict `BREAKING CHANGE` footer correctly
+
+### Refactor
+- Move CLI code into a dedicated file
+
+### Chores
+- Nix support and better dev environment
+- Update `thiserror` dependency
+
+### CI / Docs
+- Add Docker image
+- Add integration and comparison documentation
+- Add roadmap
+
+## [0.9.4] - (previous release)
+
+### Bug Fixes
+- Fix bin path for tests, dependency updates, bump version
+
+### Docs
+- Add repository metadata
+
 ## [0.9.1] - 2025-08-22
 
 ### Changes
@@ -21,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLI tool (`commit-check`) for command-line validation
 - Support for all standard Conventional Commit types:
   - `feat` - New features
-  - `fix` - Bug fixes  
+  - `fix` - Bug fixes
   - `docs` - Documentation changes
   - `style` - Code style changes
   - `refactor` - Code refactoring
