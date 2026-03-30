@@ -173,6 +173,9 @@ pub enum CommitValidationError {
     #[error("Scope '{0}' must be lowercase")]
     ScopeNotLowercase(String),
 
+    #[error("A scope is required")]
+    ScopeRequired,
+
     #[error("No footer matches the required issue pattern '{0}'")]
     MissingIssueRef(String),
 
@@ -198,6 +201,8 @@ pub struct ValidationConfig {
     pub allowed_scopes: Option<Vec<String>>,
     /// Whether to enforce lowercase scope
     pub enforce_lowercase_scope: bool,
+    /// Whether a scope is required on every commit
+    pub require_scope: bool,
     /// Optional regex pattern that at least one footer must match (e.g. `r"^Refs: #\d+"`)
     pub issue_pattern: Option<String>,
     /// Minimum length for the description (0 means no minimum beyond non-empty)
@@ -213,6 +218,7 @@ impl Default for ValidationConfig {
             disallow_description_period: true,
             allowed_scopes: None,
             enforce_lowercase_scope: false,
+            require_scope: false,
             issue_pattern: None,
             min_description_length: 0,
         }
@@ -398,6 +404,8 @@ pub fn validate_commit_with_config(
         if config.enforce_lowercase_scope && s.chars().any(|c| c.is_uppercase()) {
             errors.push(CommitValidationError::ScopeNotLowercase(s.clone()));
         }
+    } else if config.require_scope {
+        errors.push(CommitValidationError::ScopeRequired);
     }
 
     // Validate description
@@ -770,6 +778,35 @@ mod tests {
         let cfg = config_with_issue_pattern(r"^Closes: #\d+");
         let msg = "feat: add feature\n\nReviewed-by: Bob\nCloses: #42";
         assert!(validate_commit_with_config(msg, &cfg).is_ok());
+    }
+
+    // ---- require-scope tests ----
+
+    #[test]
+    fn test_require_scope_missing() {
+        let cfg = ValidationConfig {
+            require_scope: true,
+            ..ValidationConfig::default()
+        };
+        let err = validate_commit_with_config("feat: add thing", &cfg).unwrap_err();
+        assert!(
+            matches!(err, CommitValidationError::ScopeRequired),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn test_require_scope_present_passes() {
+        let cfg = ValidationConfig {
+            require_scope: true,
+            ..ValidationConfig::default()
+        };
+        assert!(validate_commit_with_config("feat(api): add thing", &cfg).is_ok());
+    }
+
+    #[test]
+    fn test_require_scope_not_enforced_by_default() {
+        assert!(validate_commit("feat: add thing").is_ok());
     }
 
     // ---- scope-lowercase tests ----
