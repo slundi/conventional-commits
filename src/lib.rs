@@ -673,13 +673,19 @@ mod tests {
     fn test_fix_type_casing() {
         assert_eq!(fix_commit_message("Feat: add thing"), "feat: add thing");
         assert_eq!(fix_commit_message("FIX: resolve bug"), "fix: resolve bug");
-        assert_eq!(fix_commit_message("CHORE(deps): bump version"), "chore(deps): bump version");
+        assert_eq!(
+            fix_commit_message("CHORE(deps): bump version"),
+            "chore(deps): bump version"
+        );
     }
 
     #[test]
     fn test_fix_description_whitespace() {
         assert_eq!(fix_commit_message("feat:   add thing  "), "feat: add thing");
-        assert_eq!(fix_commit_message("fix:  resolve  bug  "), "fix: resolve  bug");
+        assert_eq!(
+            fix_commit_message("fix:  resolve  bug  "),
+            "fix: resolve  bug"
+        );
     }
 
     #[test]

@@ -1,0 +1,45 @@
+# commit-check configuration file
+# Rename to .commit-check.toml and place it in your repository root.
+# All fields are optional. CLI flags override values set here.
+
+# Allow commit types beyond the 11 standard ones (feat, fix, docs, …).
+# Set to false to restrict commits to standard types only.
+# Default: true
+# allow_custom_types = true
+
+# Maximum number of characters allowed in the commit description.
+# Default: 72
+# max_length = 72
+
+# Minimum number of characters required in the commit description.
+# 0 means no minimum is enforced.
+# Default: 0
+# min_length = 0
+
+# Require the commit description to start with a lowercase letter.
+# Default: true
+# enforce_lowercase = true
+
+# Reject descriptions that end with a period.
+# Default: true
+# disallow_period = true
+
+# Require every commit to include a scope, e.g. feat(api): …
+# Default: false
+# require_scope = false
+
+# Reject scopes that contain uppercase letters.
+# Default: false
+# enforce_lowercase_scope = false
+
+# Comma-separated list of allowed scopes.
+# When set, any scope not in this list is rejected.
+# Omit the field (or leave it commented out) to allow any scope.
+# Default: (unrestricted)
+# scopes = "api,client,shared"
+
+# Regex pattern that at least one commit footer must match.
+# Useful for enforcing a link to an issue tracker on every commit.
+# Default: (no pattern required)
+# issue_pattern = "^Refs: #\\d+"   # GitHub-style
+# issue_pattern = "^Fixes: [A-Z]+-\\d+"  # Jira-style

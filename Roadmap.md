@@ -17,14 +17,3 @@ If we are running this in a CI pipeline over a range of commits (e.g., git log m
 * **Complexity**: Medium. We would need to change the CLI to accept a range of commits, which involves calling `git log` internally or having a git crate in the project.
 * **Weight**: Medium. We might be tempted to pull in a crate like `git2` (which is very heavy) or use `std::process::Command` to call the system `git` (lightweight but requires git to be installed).
 * **Verdict**: Use `std::process::Command` to keep it light, but avoid `git2` at all costs we you want to stay under 1MB.
-
-## 3. Configuration File (.commit-check.toml)
-
-While CLI args are great for CI, having a persistent config file makes local development easier.
-* Feature: Automatically look for a `.commit-check.toml` in the repo root.
-* Why it shines: You don't have to pass `--types` or `--max-length` every time you run the command manually; it just "knows" the project rules.
-* Complexity: Medium. You need logic to search parent directories for the file.
-* **Weight**: High. To parse `.toml`, we would typically add the `toml` and `serde` crates.
-  * Standard path: Adds ~150KB to the binary and increases compile time.
-  * Lightweight path: Use a tiny parser like `micro-toml` or simply use a JSON config (since `serde_json` is very optimized) or even a simple `.env` style key-value parser.
-* **Verdict**: The biggest risk to "lightweight" status. If we implement this, choose the parsing library very carefully.

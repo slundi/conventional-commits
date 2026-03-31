@@ -23,25 +23,25 @@ pub(crate) struct Cli {
     #[arg(short, long)]
     pub(crate) message: Option<String>,
 
-    /// Allow custom commit types beyond the standard ones
-    #[arg(long, default_value = "true")]
-    pub(crate) allow_custom_types: bool,
+    /// Allow custom commit types beyond the standard ones [default: true]
+    #[arg(long, value_name = "BOOL")]
+    pub(crate) allow_custom_types: Option<bool>,
 
-    /// Maximum length for commit description
-    #[arg(long, default_value = "72")]
-    pub(crate) max_length: usize,
+    /// Maximum length for commit description [default: 72]
+    #[arg(long, value_name = "N")]
+    pub(crate) max_length: Option<usize>,
 
-    /// Minimum length for commit description (0 = no minimum)
-    #[arg(long, default_value = "0")]
-    pub(crate) min_length: usize,
+    /// Minimum length for commit description [default: 0]
+    #[arg(long, value_name = "N")]
+    pub(crate) min_length: Option<usize>,
 
-    /// Enforce lowercase description
-    #[arg(long, default_value = "true")]
-    pub(crate) enforce_lowercase: bool,
+    /// Enforce lowercase description [default: true]
+    #[arg(long, value_name = "BOOL")]
+    pub(crate) enforce_lowercase: Option<bool>,
 
-    /// Disallow period at end of description
-    #[arg(long, default_value = "true")]
-    pub(crate) disallow_period: bool,
+    /// Disallow period at end of description [default: true]
+    #[arg(long, value_name = "BOOL")]
+    pub(crate) disallow_period: Option<bool>,
 
     /// Enable verbose output
     #[arg(short, long)]
@@ -57,13 +57,13 @@ pub(crate) struct Cli {
     #[arg(long, value_name = "SCOPES")]
     pub(crate) scopes: Option<String>,
 
-    /// Enforce lowercase scope
-    #[arg(long, default_value = "false")]
-    pub(crate) enforce_lowercase_scope: bool,
+    /// Enforce lowercase scope [default: false]
+    #[arg(long, value_name = "BOOL")]
+    pub(crate) enforce_lowercase_scope: Option<bool>,
 
-    /// Require a scope to be present on every commit
-    #[arg(long, default_value = "false")]
-    pub(crate) require_scope: bool,
+    /// Require a scope to be present on every commit [default: false]
+    #[arg(long, value_name = "BOOL")]
+    pub(crate) require_scope: Option<bool>,
 
     /// Regex pattern that at least one footer must match (e.g. "^Refs: #\d+" or "^Fixes: [A-Z]+-\d+").
     /// Ensures commits are linked to an issue or ticket.

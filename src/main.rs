@@ -1,4 +1,5 @@
 mod cli;
+mod config;
 
 use clap::Parser;
 use conventional_commits::{
@@ -88,7 +89,16 @@ fn apply_fix_if_requested(message: String, fix: bool) -> String {
 fn main() {
     let cli = Cli::parse();
 
-    let allowed_scopes = cli.scopes.as_deref().map(|s| {
+    let file_cfg = match config::load_config() {
+        Ok(cfg) => cfg.unwrap_or_default(),
+        Err(e) => {
+            eprintln!("Warning: {e}");
+            config::FileConfig::default()
+        }
+    };
+
+    let scopes_str = cli.scopes.as_deref().or(file_cfg.scopes.as_deref());
+    let allowed_scopes = scopes_str.map(|s| {
         s.split(',')
             .map(|scope| scope.trim().to_string())
             .filter(|s| !s.is_empty())
@@ -96,15 +106,30 @@ fn main() {
     });
 
     let config = ValidationConfig {
-        max_description_length: cli.max_length,
-        min_description_length: cli.min_length,
-        allow_custom_types: cli.allow_custom_types,
-        enforce_lowercase_description: cli.enforce_lowercase,
-        enforce_lowercase_scope: cli.enforce_lowercase_scope,
-        require_scope: cli.require_scope,
-        disallow_description_period: cli.disallow_period,
+        max_description_length: cli.max_length.or(file_cfg.max_length).unwrap_or(72),
+        min_description_length: cli.min_length.or(file_cfg.min_length).unwrap_or(0),
+        allow_custom_types: cli
+            .allow_custom_types
+            .or(file_cfg.allow_custom_types)
+            .unwrap_or(true),
+        enforce_lowercase_description: cli
+            .enforce_lowercase
+            .or(file_cfg.enforce_lowercase)
+            .unwrap_or(true),
+        enforce_lowercase_scope: cli
+            .enforce_lowercase_scope
+            .or(file_cfg.enforce_lowercase_scope)
+            .unwrap_or(false),
+        require_scope: cli
+            .require_scope
+            .or(file_cfg.require_scope)
+            .unwrap_or(false),
+        disallow_description_period: cli
+            .disallow_period
+            .or(file_cfg.disallow_period)
+            .unwrap_or(true),
         allowed_scopes,
-        issue_pattern: cli.issue_pattern,
+        issue_pattern: cli.issue_pattern.or(file_cfg.issue_pattern),
     };
 
     let format = cli.format.clone();
