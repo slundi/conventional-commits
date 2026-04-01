@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(taplo get:*)"
+      "Bash(taplo get:*)",
+      "WebFetch(domain:docs.rs)",
+      "WebFetch(domain:github.com)"
     ]
   }
 }

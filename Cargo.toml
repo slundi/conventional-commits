@@ -9,6 +9,9 @@ categories = ["command-line-utilities", "development-tools"]
 authors = ["Sébastien LUNDI"]
 repository = "https://codeberg.org/slundi/conventional-commits"
 
+[badges]
+maintenance = { status = "passively-maintained" }
+
 [[bin]]
 name = "commit-check"
 path = "src/main.rs"
