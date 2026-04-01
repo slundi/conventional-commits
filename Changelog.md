@@ -5,6 +5,48 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.2] - 2026-04-01
+
+### Features
+
+- Collect all validation errors instead of stopping at first
+- Add `--min-length` flag to enforce minimum description length
+- Add `--format json` for machine-readable output
+- Add `--enforce-lowercase-scope` flag to validate scope casing
+- Add `--hook-args` flag to embed extra arguments in the installed hook
+- Add `--require-scope` flag to mandate a scope on every commit
+- Extend `--fix` to lowercase type and trim description whitespace
+- Add config module with `.commit-check.toml` loading
+
+## Fixes
+
+- Always print when `--fix` is active so the result is capturable
+
+### Refactor
+
+- Replace regex header parser with token-based scanner
+
+## [0.10.1] - 2026-03-30
+
+### Features
+
+- Add `--scopes` flag to restrict commits to an allowed scope list
+- Add `--fix` flag to auto-correct common commit message mistakes
+- Add `install-hook` command with `--force` flag and existing hook protection
+
+### Documentation
+
+- Add [roadmap](Roadmap.md)
+- Integration and comparison
+
+### Chores
+
+* Nix support
+
+### CI
+
+- Buildable docker image
+
 ## [0.10.0] - 2026-03-30
 
 ### Features
