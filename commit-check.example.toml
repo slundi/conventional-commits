@@ -43,3 +43,18 @@
 # Default: (no pattern required)
 # issue_pattern = "^Refs: #\\d+"   # GitHub-style
 # issue_pattern = "^Fixes: [A-Z]+-\\d+"  # Jira-style
+
+# ── Body cleaning ─────────────────────────────────────────────────────────────
+# Automatically remove unwanted lines from the commit body before validation.
+# Cleaning also collapses consecutive blank lines and trims trailing whitespace.
+# Removed lines are printed to stdout so you can see what was stripped.
+#
+# Lines whose trimmed content starts with any of these comma-separated prefixes
+# are removed. Useful for stripping attribution trailers added by tools.
+# Default: (no rules)
+# clean_starts_with = "Co-authored-by,Signed-off-by"
+#
+# Lines whose trimmed content matches any of these comma-separated regex patterns
+# are removed. Note: avoid commas inside patterns; use [,] if needed.
+# Default: (no patterns)
+# clean_regex = "^🤖.*,^Generated-by:.*"

@@ -17,12 +17,3 @@ If we are running this in a CI pipeline over a range of commits (e.g., git log m
 * **Complexity**: Medium. We would need to change the CLI to accept a range of commits, which involves calling `git log` internally or having a git crate in the project.
 * **Weight**: Medium. We might be tempted to pull in a crate like `git2` (which is very heavy) or use `std::process::Command` to call the system `git` (lightweight but requires git to be installed).
 * **Verdict**: Use `std::process::Command` to keep it light, but avoid `git2` at all costs we you want to stay under 1MB.
-
-## 3. Custom clean rules
-
-When you use automated tools, you may have `Co-authored ...`, `Signed-off-by ...` or similar strings in the end of the body message
-* **Feature**: add 1 or multiple clean line rules in the CLI and the TOML.
-* **Action**: remove unwanted lines from the commit body and ensure there is no more than 1 line between text bodies, also trim sends spaces at the end of the body. We must show in the output removed lines
-* **Complexity**: Medium, we can have simple filters using start with and other filters using regex
-* **Weight**: Low. logic and we reuse already available crates.
-* **Verdict**: Nice-to-have since even AI are adding `Co-authored` stuffs even when told to not do becouse they "forgot"

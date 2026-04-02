@@ -70,6 +70,16 @@ pub(crate) struct Cli {
     #[arg(long, value_name = "PATTERN")]
     pub(crate) issue_pattern: Option<String>,
 
+    /// Remove body lines that start with this prefix (can be repeated).
+    /// Example: --clean-starts-with "Co-authored-by" --clean-starts-with "Signed-off-by"
+    #[arg(long, value_name = "PREFIX", action = clap::ArgAction::Append)]
+    pub(crate) clean_starts_with: Vec<String>,
+
+    /// Remove body lines matching this regex (can be repeated).
+    /// Example: --clean-regex "^Co-authored-by:.*"
+    #[arg(long, value_name = "PATTERN", action = clap::ArgAction::Append)]
+    pub(crate) clean_regex: Vec<String>,
+
     /// Output format
     #[arg(long, value_enum, default_value = "text")]
     pub(crate) format: OutputFormat,

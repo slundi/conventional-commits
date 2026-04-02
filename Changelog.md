@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.3] 2026-04-02
+
+### Features
+
+- Add `--clean-starts-with` and `--clean-regex` CLI flags (repeatable) to strip unwanted body lines before validation
+- Add `clean_starts_with` and `clean_regex` fields to `.commit-check.toml`
+- CLI and TOML clean rules are additive (both sources are applied)
+- Cleaning collapses consecutive blank lines, trims trailing whitespace, and reports removed lines
+- Expose `clean_commit_body` and `CleanResult` in the public library API
+
 ## [0.10.2] - 2026-04-01
 
 ### Features
@@ -33,15 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `--scopes` flag to restrict commits to an allowed scope list
 - Add `--fix` flag to auto-correct common commit message mistakes
 - Add `install-hook` command with `--force` flag and existing hook protection
+* Nix support
 
 ### Documentation
 
 - Add [roadmap](Roadmap.md)
 - Integration and comparison
-
-### Chores
-
-* Nix support
 
 ### CI
 
@@ -61,10 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactor
 - Move CLI code into a dedicated file
-
-### Chores
-- Nix support and better dev environment
-- Update `thiserror` dependency
 
 ### CI / Docs
 - Add Docker image

@@ -3,7 +3,8 @@ mod config;
 
 use clap::Parser;
 use conventional_commits::{
-    fix_commit_message, validate_commit_with_config, CommitValidationError, ValidationConfig,
+    clean_commit_body, fix_commit_message, validate_commit_with_config, CommitValidationError,
+    ValidationConfig,
 };
 use std::io::{self, Read, Write};
 use std::process;
@@ -73,6 +74,37 @@ fn print_color(message: &str, color: Color, is_bold: bool, is_stderr: bool) {
     let _ = stream.reset();
 }
 
+/// Parses a comma-separated string into a list of non-empty trimmed strings.
+fn split_csv(s: &str) -> Vec<String> {
+    s.split(',')
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+        .collect()
+}
+
+/// Applies clean rules (starts_with + regex) when any rules are configured.
+/// Prints removed lines and returns the cleaned message.
+fn apply_clean_rules(message: String, starts_with: &[String], regexes: &[String]) -> String {
+    if starts_with.is_empty() && regexes.is_empty() {
+        return message;
+    }
+    let sw_refs: Vec<&str> = starts_with.iter().map(String::as_str).collect();
+    let re_refs: Vec<&str> = regexes.iter().map(String::as_str).collect();
+    match clean_commit_body(&message, &sw_refs, &re_refs) {
+        Err(e) => {
+            eprintln!("Warning: invalid clean-regex pattern: {e}");
+            message
+        }
+        Ok(result) => {
+            for line in &result.removed_lines {
+                print_color("Removed: ", Color::Yellow, true, false);
+                println!("{}", line);
+            }
+            result.cleaned_message
+        }
+    }
+}
+
 fn apply_fix_if_requested(message: String, fix: bool) -> String {
     if !fix {
         return message;
@@ -96,6 +128,16 @@ fn main() {
             config::FileConfig::default()
         }
     };
+
+    // Collect clean rules: CLI flags are combined with TOML values
+    let mut clean_starts_with: Vec<String> = cli.clean_starts_with.clone();
+    if let Some(ref csv) = file_cfg.clean_starts_with {
+        clean_starts_with.extend(split_csv(csv));
+    }
+    let mut clean_regex: Vec<String> = cli.clean_regex.clone();
+    if let Some(ref csv) = file_cfg.clean_regex {
+        clean_regex.extend(split_csv(csv));
+    }
 
     let scopes_str = cli.scopes.as_deref().or(file_cfg.scopes.as_deref());
     let allowed_scopes = scopes_str.map(|s| {
@@ -137,6 +179,7 @@ fn main() {
     match &cli.command {
         Some(Commands::Validate(args)) => {
             let message = get_commit_message(args.message.as_deref(), cli.message.as_deref());
+            let message = apply_clean_rules(message, &clean_starts_with, &clean_regex);
             let message = apply_fix_if_requested(message, cli.fix);
             validate_and_report(&message, &config, cli.verbose, &format);
         }
@@ -153,6 +196,7 @@ fn main() {
         None => {
             // Default behavior: validate commit message
             let message = get_commit_message(None, cli.message.as_deref());
+            let message = apply_clean_rules(message, &clean_starts_with, &clean_regex);
             let message = apply_fix_if_requested(message, cli.fix);
             validate_and_report(&message, &config, cli.verbose, &format);
         }

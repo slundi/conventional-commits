@@ -16,6 +16,10 @@ pub(crate) struct FileConfig {
     pub(crate) require_scope: Option<bool>,
     pub(crate) scopes: Option<String>,
     pub(crate) issue_pattern: Option<String>,
+    /// Comma-separated list of line prefixes to remove from the body.
+    pub(crate) clean_starts_with: Option<String>,
+    /// Comma-separated list of regex patterns; matching body lines are removed.
+    pub(crate) clean_regex: Option<String>,
 }
 
 /// Errors that can occur when loading and parsing a config file.
@@ -86,6 +90,8 @@ fn parse_config(content: &str) -> Result<FileConfig, toml_span::DeserError> {
     let require_scope = th.optional::<bool>("require_scope");
     let scopes = th.optional::<String>("scopes");
     let issue_pattern = th.optional::<String>("issue_pattern");
+    let clean_starts_with = th.optional::<String>("clean_starts_with");
+    let clean_regex = th.optional::<String>("clean_regex");
 
     th.finalize(None)?;
 
@@ -99,6 +105,8 @@ fn parse_config(content: &str) -> Result<FileConfig, toml_span::DeserError> {
         require_scope,
         scopes,
         issue_pattern,
+        clean_starts_with,
+        clean_regex,
     })
 }
 
@@ -120,6 +128,8 @@ mod tests {
         assert!(cfg.require_scope.is_none());
         assert!(cfg.scopes.is_none());
         assert!(cfg.issue_pattern.is_none());
+        assert!(cfg.clean_starts_with.is_none());
+        assert!(cfg.clean_regex.is_none());
     }
 
     #[test]
@@ -134,6 +144,8 @@ enforce_lowercase_scope = true
 require_scope = true
 scopes = "api,client"
 issue_pattern = "^Refs: #\\d+"
+clean_starts_with = "Co-authored-by,Signed-off-by"
+clean_regex = "^🤖.*"
 "#;
         let cfg = parse_config(toml).expect("should parse");
         assert_eq!(cfg.allow_custom_types, Some(false));
@@ -145,6 +157,11 @@ issue_pattern = "^Refs: #\\d+"
         assert_eq!(cfg.require_scope, Some(true));
         assert_eq!(cfg.scopes, Some("api,client".to_string()));
         assert_eq!(cfg.issue_pattern, Some(r"^Refs: #\d+".to_string()));
+        assert_eq!(
+            cfg.clean_starts_with,
+            Some("Co-authored-by,Signed-off-by".to_string())
+        );
+        assert_eq!(cfg.clean_regex, Some("^🤖.*".to_string()));
     }
 
     #[test]

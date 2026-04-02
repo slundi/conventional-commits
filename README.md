@@ -58,11 +58,39 @@ commit-check --message "feat: new feature" --max-length 50 --allow-custom-types=
 
 ### Configuration Options
 
-- `--max-length <N>`: Maximum description length (default: 72)
-- `--allow-custom-types <BOOL>`: Allow custom commit types (default: true)
-- `--enforce-lowercase <BOOL>`: Enforce lowercase description (default: true)
-- `--disallow-period <BOOL>`: Disallow period at end of description (default: true)
-- `--verbose`: Enable detailed output
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--max-length <N>` | `72` | Maximum description length |
+| `--min-length <N>` | `0` | Minimum description length |
+| `--allow-custom-types <BOOL>` | `true` | Allow custom commit types |
+| `--enforce-lowercase <BOOL>` | `true` | Enforce lowercase first letter in description |
+| `--disallow-period <BOOL>` | `true` | Disallow period at end of description |
+| `--scopes <SCOPES>` | — | Comma-separated list of allowed scopes |
+| `--enforce-lowercase-scope <BOOL>` | `false` | Reject scopes with uppercase letters |
+| `--require-scope <BOOL>` | `false` | Require a scope on every commit |
+| `--issue-pattern <PATTERN>` | — | Regex that at least one footer must match |
+| `--fix` | — | Auto-correct common header mistakes and print the result |
+| `--format <text\|json>` | `text` | Output format |
+| `--verbose` | — | Detailed output |
+
+### Body Cleaning
+
+Automated tools (AI assistants, CI bots) often append trailers like `Co-authored-by:` or `Signed-off-by:` to commit bodies. Use clean rules to strip these lines before validation:
+
+```bash
+# Remove lines by prefix
+commit-check --message "$(cat .git/COMMIT_EDITMSG)" \
+  --clean-starts-with "Co-authored-by" \
+  --clean-starts-with "Signed-off-by"
+
+# Remove lines by regex (can be combined with starts-with rules)
+commit-check --message "$(cat .git/COMMIT_EDITMSG)" \
+  --clean-regex "^🤖.*"
+
+# Both flags are repeatable and additive with rules from .commit-check.toml
+```
+
+Cleaning also collapses consecutive blank lines and trims trailing whitespace. Each removed line is printed as `Removed: <line>` so you can see what was stripped.
 
 ### Integration
 
@@ -152,6 +180,8 @@ repos:
 
 - `validate_commit(message: &str)` - Validates a commit message with default configuration
 - `validate_commit_with_config(message: &str, config: &ValidationConfig)` - Validates with custom configuration
+- `fix_commit_message(message: &str)` - Auto-corrects common header mistakes
+- `clean_commit_body(message, starts_with_rules, regex_rules)` - Strips unwanted body lines, collapses blank lines, trims trailing whitespace; returns `CleanResult`
 
 ### Types
 
@@ -159,6 +189,7 @@ repos:
 - `CommitType` - Enum of commit types
 - `ValidationConfig` - Configuration for validation rules
 - `CommitValidationError` - Error types for validation failures
+- `CleanResult` - Result of `clean_commit_body`: `cleaned_message` + `removed_lines`
 
 ## Contributing
 
