@@ -208,3 +208,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Conventional Commits](https://conventionalcommits.org/) specification
 - [commitlint](https://github.com/conventional-changelog/commitlint) for inspiration
 - [commitizen](https://github.com/commitizen/cz-cli) for reference implementation
+
+## 🤝 Contributing
+
+The conventionnal commits checker is developed on Codeberg and mirrored to GitHub.
+
+* Primary Repo: [Codeberg main repo](https://codeberg.org/slundi/conventional-commits
+)
+* Mirror: [GitHub repo](https://codeberg.com/slundi/conventional-commits
+)
