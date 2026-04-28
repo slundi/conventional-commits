@@ -61,7 +61,7 @@ fn main() {
     // Example 3: Custom configuration
     let config = ValidationConfig {
         max_description_length: 30,           // Shorter limit
-        allow_custom_types: false,            // Only standard types
+        allow_custom_types: true,
         enforce_lowercase_description: false, // Allow uppercase
         disallow_description_period: false,   // Allow periods
         allowed_scopes: None,
@@ -69,6 +69,7 @@ fn main() {
         require_scope: false,
         issue_pattern: None,
         min_description_length: 0,
+        allowed_types: None,
     };
 
     let test_commits = vec![

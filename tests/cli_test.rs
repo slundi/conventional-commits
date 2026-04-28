@@ -194,6 +194,18 @@ fn test_scopes_allowed() {
 }
 
 #[test]
+fn test_cli_allowed_types_success() {
+    let mut cmd = get_test_command();
+    cmd.arg("--message")
+        .arg("api: add new endpoint")
+        .arg("--types")
+        .arg("feat,fix,api")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Valid conventional commit"));
+}
+
+#[test]
 fn test_scopes_rejected() {
     get_test_command()
         .arg("--message")
@@ -294,4 +306,30 @@ fn test_install_hook_force_overwrites_existing() {
     assert!(content.contains("commit-check"));
 
     std::fs::remove_dir_all(&tmp).unwrap();
+}
+
+#[test]
+fn test_cli_allowed_types_failure() {
+    let mut cmd = get_test_command();
+    cmd.arg("--message")
+        .arg("docs: update readme")
+        .arg("--types")
+        .arg("feat,fix")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("Type 'docs' is not allowed"))
+        .stderr(predicate::str::contains("Allowed types are: feat, fix"));
+}
+
+#[test]
+fn test_cli_allowed_types_with_verbose() {
+    let mut cmd = get_test_command();
+    cmd.arg("--message")
+        .arg("feat: working")
+        .arg("--types")
+        .arg("feat")
+        .arg("--verbose")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Type: feat"));
 }

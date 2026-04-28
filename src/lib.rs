@@ -164,6 +164,9 @@ pub enum CommitValidationError {
     #[error("Commit type '{0}' is not recognized")]
     UnknownType(String),
 
+    #[error("Type '{0}' is not allowed. Allowed types are: {1}")]
+    TypeNotAllowed(String, String),
+
     #[error("A blank line is required between the header and the body")]
     MissingBlankLine,
 
@@ -207,6 +210,8 @@ pub struct ValidationConfig {
     pub issue_pattern: Option<String>,
     /// Minimum length for the description (0 means no minimum beyond non-empty)
     pub min_description_length: usize,
+    /// Optional list of allowed types; if `None`, all types are accepted
+    pub allowed_types: Option<Vec<String>>,
 }
 
 impl Default for ValidationConfig {
@@ -221,6 +226,7 @@ impl Default for ValidationConfig {
             require_scope: false,
             issue_pattern: None,
             min_description_length: 0,
+            allowed_types: None,
         }
     }
 }
@@ -391,6 +397,14 @@ pub fn validate_commit_with_config(
     if !config.allow_custom_types {
         if let CommitType::Custom(_) = commit_type {
             errors.push(CommitValidationError::UnknownType(type_str.clone()));
+        }
+    }
+    if let Some(ref allowed) = config.allowed_types {
+        if !allowed.contains(&type_str) {
+            errors.push(CommitValidationError::TypeNotAllowed(
+                type_str.clone(),
+                allowed.join(", "),
+            ));
         }
     }
 
@@ -787,6 +801,28 @@ mod tests {
     }
 
     #[test]
+    fn test_allowed_types_validation() {
+        let config = ValidationConfig {
+            allowed_types: Some(vec!["feat".to_string(), "fix".to_string()]),
+            ..ValidationConfig::default()
+        };
+
+        // Should pass: 'feat' is in the allowed list
+        let res = validate_commit_with_config("feat: add feature", &config);
+        assert!(res.is_ok());
+
+        // Should fail: 'chore' is not in the allowed list
+        let res = validate_commit_with_config("chore: update deps", &config);
+        assert!(res.is_err());
+        if let Err(CommitValidationError::TypeNotAllowed(t, list)) = res {
+            assert_eq!(t, "chore");
+            assert!(list.contains("feat, fix"));
+        } else {
+            panic!("Expected TypeNotAllowed error");
+        }
+    }
+
+    #[test]
     fn test_scope_allowed() {
         let cfg = config_with_scopes(&["api", "client"]);
         assert!(validate_commit_with_config("feat(api): add endpoint", &cfg).is_ok());
@@ -1091,5 +1127,21 @@ mod tests {
         let result = clean_commit_body(msg, &["Co-authored-by"], &[]).unwrap();
         assert_eq!(result.cleaned_message, msg);
         assert!(result.removed_lines.is_empty());
+    }
+
+    #[test]
+    fn test_allowed_types_with_custom_type() {
+        let config = ValidationConfig {
+            allowed_types: Some(vec!["api".to_string()]),
+            ..ValidationConfig::default()
+        };
+
+        // Should pass: 'api' is explicitly allowed
+        let res = validate_commit_with_config("api: new endpoint", &config);
+        assert!(res.is_ok());
+
+        // Should fail: standard 'feat' is not in this specific project's list
+        let res = validate_commit_with_config("feat: add feature", &config);
+        assert!(res.is_err());
     }
 }

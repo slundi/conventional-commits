@@ -83,6 +83,10 @@ pub(crate) struct Cli {
     /// Output format
     #[arg(long, value_enum, default_value = "text")]
     pub(crate) format: OutputFormat,
+
+    /// Comma-separated list of allowed commit types (e.g., "feat,fix,docs")
+    #[arg(long, value_delimiter = ',')]
+    pub(crate) types: Option<Vec<String>>,
 }
 
 #[derive(Subcommand)]
@@ -166,8 +170,8 @@ pub(crate) fn show_types() {
     println!("  chore    - Other changes that don't modify src or test files");
     println!("  revert   - Reverts a previous commit");
     println!();
-    println!("Custom types are also allowed by default.");
-    println!("Use --allow-custom-types=false to restrict to standard types only.");
+    println!("Custom types are not allowed by default.");
+    println!("Use --allowed-types=feat,fix,custom to restrict to wanted types only.");
 }
 
 pub(crate) fn show_help_hint() {

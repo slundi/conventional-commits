@@ -172,6 +172,7 @@ fn main() {
             .unwrap_or(true),
         allowed_scopes,
         issue_pattern: cli.issue_pattern.or(file_cfg.issue_pattern),
+        allowed_types: cli.types,
     };
 
     let format = cli.format.clone();

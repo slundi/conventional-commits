@@ -53,7 +53,7 @@ commit-check examples
 commit-check types
 
 # Validate with custom configuration
-commit-check --message "feat: new feature" --max-length 50 --allow-custom-types=false
+commit-check --message "feat: new feature" --max-length 50 --allowed-types=feat,fix,docs,chore
 ```
 
 ### Configuration Options
@@ -63,6 +63,7 @@ commit-check --message "feat: new feature" --max-length 50 --allow-custom-types=
 | `--max-length <N>` | `72` | Maximum description length |
 | `--min-length <N>` | `0` | Minimum description length |
 | `--allow-custom-types <BOOL>` | `true` | Allow custom commit types |
+| `--types <LIST>` | — | Comma-separated list of allowed commit types |
 | `--enforce-lowercase <BOOL>` | `true` | Enforce lowercase first letter in description |
 | `--disallow-period <BOOL>` | `true` | Disallow period at end of description |
 | `--scopes <SCOPES>` | — | Comma-separated list of allowed scopes |

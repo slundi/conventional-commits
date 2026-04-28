@@ -83,7 +83,7 @@ Once that file is in your repo, any project can use your tool by adding this to 
 ```yaml
 repos:
   - repo: https://codeberg.org/slundi/conventional-commits
-    rev: v0.9.4  # Use a specific tag or commit hash
+    rev: v1.0.0  # Use a specific tag or commit hash
     hooks:
       - id: commit-check
         stages: [commit-msg]

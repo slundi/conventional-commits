@@ -39,7 +39,6 @@ use conventional_commits::{validate_commit_with_config, ValidationConfig};
 
 let config = ValidationConfig {
     max_description_length: 50,
-    allow_custom_types: false,
     enforce_lowercase_description: true,
     disallow_description_period: true,
     ..ValidationConfig::default()

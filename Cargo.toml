@@ -1,7 +1,7 @@
 [package]
 name = "conventional-commits-check"
-version = "0.10.3"
-edition = "2021"
+version = "1.0.1"
+edition = "2024"
 description = "A lightweight library and CLI tool for validating Conventional Commits"
 license = "MIT"
 keywords = ["git", "commit", "conventional", "validation", "cli"]
