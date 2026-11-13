@@ -1,5 +1,5 @@
 use conventional_commits::{
-    validate_commit, validate_commit_with_config, CommitType, ValidationConfig,
+    CommitType, ValidationConfig, validate_commit, validate_commit_with_config,
 };
 
 fn main() {
@@ -60,7 +60,7 @@ fn main() {
 
     // Example 3: Custom configuration
     let config = ValidationConfig {
-        max_description_length: 30,           // Shorter limit
+        max_description_length: 30, // Shorter limit
         allow_custom_types: true,
         enforce_lowercase_description: false, // Allow uppercase
         disallow_description_period: false,   // Allow periods

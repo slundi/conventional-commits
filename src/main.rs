@@ -3,14 +3,14 @@ mod config;
 
 use clap::Parser;
 use conventional_commits::{
-    clean_commit_body, fix_commit_message, validate_commit_with_config, CommitValidationError,
-    ValidationConfig,
+    CommitValidationError, ValidationConfig, clean_commit_body, fix_commit_message,
+    validate_commit_with_config,
 };
 use std::io::{self, Read, Write};
 use std::process;
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
 
-use crate::cli::{show_examples, show_help_hint, show_types, Cli, Commands, OutputFormat};
+use crate::cli::{Cli, Commands, OutputFormat, show_examples, show_help_hint, show_types};
 
 fn install_git_hook(
     base_dir: &std::path::Path,

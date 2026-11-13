@@ -394,26 +394,26 @@ pub fn validate_commit_with_config(
 
     // Validate commit type
     let commit_type = CommitType::from(type_str.as_str());
-    if !config.allow_custom_types {
-        if let CommitType::Custom(_) = commit_type {
-            errors.push(CommitValidationError::UnknownType(type_str.clone()));
-        }
+    if !config.allow_custom_types
+        && let CommitType::Custom(_) = commit_type
+    {
+        errors.push(CommitValidationError::UnknownType(type_str.clone()));
     }
-    if let Some(ref allowed) = config.allowed_types {
-        if !allowed.contains(&type_str) {
-            errors.push(CommitValidationError::TypeNotAllowed(
-                type_str.clone(),
-                allowed.join(", "),
-            ));
-        }
+    if let Some(ref allowed) = config.allowed_types
+        && !allowed.contains(&type_str)
+    {
+        errors.push(CommitValidationError::TypeNotAllowed(
+            type_str.clone(),
+            allowed.join(", "),
+        ));
     }
 
     // Validate scope (only when a scope is present)
     if let Some(ref s) = scope {
-        if let Some(ref allowed) = config.allowed_scopes {
-            if !allowed.iter().any(|a| a == s) {
-                errors.push(CommitValidationError::ScopeNotAllowed(s.clone()));
-            }
+        if let Some(ref allowed) = config.allowed_scopes
+            && !allowed.iter().any(|a| a == s)
+        {
+            errors.push(CommitValidationError::ScopeNotAllowed(s.clone()));
         }
         if config.enforce_lowercase_scope && s.chars().any(|c| c.is_uppercase()) {
             errors.push(CommitValidationError::ScopeNotLowercase(s.clone()));
@@ -423,12 +423,11 @@ pub fn validate_commit_with_config(
     }
 
     // Validate description
-    if config.enforce_lowercase_description {
-        if let Some(first) = description.chars().next() {
-            if !first.is_lowercase() {
-                errors.push(CommitValidationError::DescriptionNotLowercase);
-            }
-        }
+    if config.enforce_lowercase_description
+        && let Some(first) = description.chars().next()
+        && !first.is_lowercase()
+    {
+        errors.push(CommitValidationError::DescriptionNotLowercase);
     }
 
     if config.disallow_description_period && description.ends_with('.') {
@@ -786,7 +785,7 @@ mod tests {
     }
 
     #[test]
-    fn test_fix_unparseable_returns_original() {
+    fn test_fix_unparsable_returns_original() {
         let msg = "not a conventional commit at all";
         assert_eq!(fix_commit_message(msg), msg);
     }
