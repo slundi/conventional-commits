@@ -174,8 +174,6 @@ pub(crate) fn show_types() {
     println!("Use --allowed-types=feat,fix,custom to restrict to wanted types only.");
 }
 
-pub(crate) fn show_help_hint() {
-    println!();
-    println!("For examples of valid commits, run: commit-check examples");
-    println!("For information about commit types, run: commit-check types");
-}
+/// Hint printed after an invalid commit message in verbose mode.
+pub(crate) const HELP_HINT: &str = "\nFor examples of valid commits, run: commit-check examples\n\
+For information about commit types, run: commit-check types\n";
