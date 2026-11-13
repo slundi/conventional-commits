@@ -13,8 +13,8 @@ pub(crate) enum OutputFormat {
 #[derive(Parser)]
 #[command(name = "commit-check")]
 #[command(about = "A CLI tool for validating Conventional Commits")]
-#[command(version = "0.1.0")]
-#[command(author = "Your Name <your.email@example.com>")]
+#[command(version = "1.0.2")]
+#[command(author = "Your Name <slundi@ikmail.com>")]
 pub(crate) struct Cli {
     #[command(subcommand)]
     pub(crate) command: Option<Commands>,

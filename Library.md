@@ -4,7 +4,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-conventional-commits = "0.1.0"
+conventional-commits = "1.0.2"
 ```
 
 ## Basic validation

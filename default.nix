@@ -7,7 +7,7 @@
 }:
 rustPlatform.buildRustPackage rec {
   pname = "conventional-commits";
-  version = "0.1.0";
+  version = "1.0.2";
 
   src = fetchFromGitHub {
     owner = "slundi";
@@ -39,7 +39,7 @@ rustPlatform.buildRustPackage rec {
     description = "A lightweight library and CLI tool for validating Conventional Commits";
     homepage = "https://codeberg.org/slundi/conventional-commits";
     license = licenses.mit;
-    maintainers = with maintainers; []; # Ajoutez votre nom de maintainer nixpkgs ici
+    maintainers = with maintainers; [ ]; # Ajoutez votre nom de maintainer nixpkgs ici
     mainProgram = "commit-check";
     platforms = platforms.all;
     changelog = "https://codeberg.org/slundi/conventional-commits/blob/v${version}/CHANGELOG.md";
