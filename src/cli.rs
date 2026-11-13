@@ -170,8 +170,8 @@ pub(crate) fn show_types() {
     println!("  chore    - Other changes that don't modify src or test files");
     println!("  revert   - Reverts a previous commit");
     println!();
-    println!("Custom types are not allowed by default.");
-    println!("Use --allowed-types=feat,fix,custom to restrict to wanted types only.");
+    println!("Custom types are allowed by default (disable with --allow-custom-types false).");
+    println!("Use --types=feat,fix,custom to restrict to specific types only.");
 }
 
 /// Hint printed after an invalid commit message in verbose mode.

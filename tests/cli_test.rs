@@ -54,7 +54,12 @@ fn test_types_command() {
         .success()
         .stdout(predicate::str::contains(
             "Standard Conventional Commit types",
-        ));
+        ))
+        .stdout(predicate::str::contains("--types=feat,fix,custom"))
+        .stdout(predicate::str::contains(
+            "Custom types are allowed by default",
+        ))
+        .stdout(predicate::str::contains("--allowed-types").not());
 }
 
 #[test]

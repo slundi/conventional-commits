@@ -53,7 +53,7 @@ commit-check examples
 commit-check types
 
 # Validate with custom configuration
-commit-check --message "feat: new feature" --max-length 50 --allowed-types=feat,fix,docs,chore
+commit-check --message "feat: new feature" --max-length 50 --types=feat,fix,docs,chore
 ```
 
 ### Configuration Options
@@ -212,7 +212,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🤝 Contributing
 
-The conventionnal commits checker is developed on Codeberg and mirrored to GitHub.
+The conventional commits checker is developed on Codeberg and mirrored to GitHub.
 
 * Primary Repo: [Codeberg main repo](https://codeberg.org/slundi/conventional-commits
 )
