@@ -29,7 +29,7 @@
         redhat.vscode-yaml
         # Note: If swellaby is not in your nixpkgs channel,
         # you may need to use a community overlay or skip it here.
-        swellaby.vscode-rust-test-adapter
+        # swellaby.vscode-rust-test-adapter
       ];
       # Create a custom VSCodium with these extensions
       custom-codium = pkgs.vscode-with-extensions.override {
