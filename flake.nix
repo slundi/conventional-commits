@@ -39,6 +39,8 @@
 
       # Define the rust toolchain from your toml
       rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
+      manifest = (pkgs.lib.importTOML ./Cargo.toml).package;
     in {
       # The Package definition
       packages.default = pkgs.rustPlatform.buildRustPackage {
