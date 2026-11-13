@@ -1,6 +1,6 @@
 [package]
 name = "conventional-commits-check"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2024"
 description = "A lightweight library and CLI tool for validating Conventional Commits"
 license = "MIT"
@@ -21,8 +21,8 @@ name = "conventional_commits"
 path = "src/lib.rs"
 
 [dependencies]
-clap = { version = "4.4", features = ["derive"] }
-regex = "1.12"
+clap = { version = "4.6", features = ["derive"] }
+regex = "1.13"
 thiserror = "2.0"
 termcolor = "1.4"
 toml-span = "0.7"
