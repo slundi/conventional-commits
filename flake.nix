@@ -56,6 +56,11 @@
         buildInputs = pkgs.lib.optionals pkgs.stdenv.isDarwin [
           pkgs.darwin.apple_sdk.frameworks.Security
         ];
+
+        postInstall = ''
+          install -Dm644 commit-check.example.toml \
+            $out/share/doc/commit-check/commit-check.example.toml
+        '';
       };
 
       # Development Shell

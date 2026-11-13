@@ -2,8 +2,6 @@
   lib,
   rustPlatform,
   fetchFromGitHub,
-  installShellFiles,
-  stdenv,
 }:
 rustPlatform.buildRustPackage rec {
   pname = "conventional-commits";
@@ -13,35 +11,26 @@ rustPlatform.buildRustPackage rec {
     owner = "slundi";
     repo = "conventional-commits";
     rev = "v${version}";
-    hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # replace with real hash
+    hash = "sha256-vnm/brSS875gj7pvVTDYM+6fotXVqJbB1tgYXeNHQV4=";
   };
 
-  cargoHash = "sha256-BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="; # replace with real hash
-
-  nativeBuildInputs = [
-    installShellFiles
-  ];
+  # v1.0.2 was tagged without Cargo.lock, so it cannot be vendored.
+  # Bump `version`/`hash` to the first tag that ships Cargo.lock, build once,
+  # and paste the hash Nix reports here.
+  cargoHash = lib.fakeHash;
 
   postInstall = ''
-    # Install shell completions
-    installShellCompletion --cmd commit-check \
-      --bash <($out/bin/commit-check --help | grep -A 50 "SUBCOMMANDS" || true) \
-      --zsh <($out/bin/commit-check --help | grep -A 50 "SUBCOMMANDS" || true) \
-      --fish <($out/bin/commit-check --help | grep -A 50 "SUBCOMMANDS" || true)
-
-    # Install man page if it exists
-    if [ -f "man/commit-check.1" ]; then
-      installManPage man/commit-check.1
-    fi
+    install -Dm644 commit-check.example.toml \
+      $out/share/doc/commit-check/commit-check.example.toml
   '';
 
-  meta = with lib; {
+  meta = {
     description = "A lightweight library and CLI tool for validating Conventional Commits";
     homepage = "https://codeberg.org/slundi/conventional-commits";
-    license = licenses.mit;
-    maintainers = with maintainers; [ ]; # Ajoutez votre nom de maintainer nixpkgs ici
+    changelog = "https://codeberg.org/slundi/conventional-commits/src/tag/v${version}/Changelog.md";
+    license = lib.licenses.mit;
+    maintainers = [];
     mainProgram = "commit-check";
-    platforms = platforms.all;
-    changelog = "https://codeberg.org/slundi/conventional-commits/blob/v${version}/CHANGELOG.md";
+    platforms = lib.platforms.all;
   };
 }
