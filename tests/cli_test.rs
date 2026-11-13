@@ -137,7 +137,7 @@ fn test_fix_already_valid_no_fixed_line() {
 
 #[test]
 fn test_fix_invalid_even_after_fix() {
-    // A completely unparseable message can't be fixed — should still fail
+    // A completely unparsable message can't be fixed — should still fail
     get_test_command()
         .arg("--message")
         .arg("not a conventional commit")
@@ -332,4 +332,30 @@ fn test_cli_allowed_types_with_verbose() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Type: feat"));
+}
+
+#[test]
+fn test_json_output_escapes_control_characters() {
+    let mut cmd = get_test_command();
+    let output = cmd
+        .arg("--format")
+        .arg("json")
+        .arg("--message")
+        .arg("feat: add \u{1b}[1mbold\u{1b}[0m and\u{08}backspace")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let stdout = String::from_utf8(output).expect("utf8 stdout");
+    let json_line = stdout.trim_end_matches('\n');
+
+    assert!(
+        json_line.contains(r#""description":"add \u001b[1mbold\u001b[0m and\bbackspace""#),
+        "{json_line}"
+    );
+    assert!(
+        json_line.chars().all(|character| character >= '\u{20}'),
+        "raw control character in JSON output: {json_line:?}"
+    );
 }

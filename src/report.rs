@@ -47,13 +47,30 @@ pub(crate) fn evaluate(message: &str, config: &ValidationConfig) -> Outcome {
 }
 
 /// Escapes a string for safe embedding in a JSON value.
+///
+/// Follows RFC 8259 §7: `"` and `\` are escaped, and every control character
+/// U+0000–U+001F is escaped (short form when one exists, `\u00XX` otherwise).
 fn json_escape(input: &str) -> String {
-    input
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r")
-        .replace('\t', "\\t")
+    use std::fmt::Write as _;
+
+    let mut escaped = String::with_capacity(input.len());
+    for character in input.chars() {
+        match character {
+            '"' => escaped.push_str("\\\""),
+            '\\' => escaped.push_str("\\\\"),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            '\u{08}' => escaped.push_str("\\b"),
+            '\u{0C}' => escaped.push_str("\\f"),
+            '\u{00}'..='\u{1F}' => {
+                // Writing to a String cannot fail.
+                let _ = write!(escaped, "\\u{:04x}", u32::from(character));
+            }
+            _ => escaped.push(character),
+        }
+    }
+    escaped
 }
 
 fn json_string(input: &str) -> String {
@@ -220,6 +237,69 @@ mod tests {
     #[test]
     fn test_json_escape_special_chars() {
         assert_eq!(json_escape("a\"b\\c\nd\re\tf"), "a\\\"b\\\\c\\nd\\re\\tf");
+    }
+
+    #[test]
+    fn test_json_escape_short_forms_for_backspace_and_form_feed() {
+        assert_eq!(json_escape("a\u{08}b\u{0C}c"), "a\\bb\\fc");
+    }
+
+    #[test]
+    fn test_json_escape_other_control_chars_use_unicode_escape() {
+        assert_eq!(json_escape("\u{00}"), "\\u0000");
+        assert_eq!(json_escape("\u{01}"), "\\u0001");
+        assert_eq!(json_escape("\u{0B}"), "\\u000b");
+        assert_eq!(json_escape("\u{1B}[31m"), "\\u001b[31m");
+        assert_eq!(json_escape("\u{1F}"), "\\u001f");
+    }
+
+    #[test]
+    fn test_json_escape_leaves_no_raw_control_chars() {
+        let every_control: String = ('\u{00}'..='\u{1F}').collect();
+        let escaped = json_escape(&every_control);
+        assert!(
+            escaped.chars().all(|character| character >= '\u{20}'),
+            "{escaped:?}"
+        );
+        // Every input char maps to exactly one escape sequence starting with a backslash.
+        assert_eq!(escaped.matches('\\').count(), every_control.chars().count());
+    }
+
+    #[test]
+    fn test_json_escape_keeps_printable_and_non_ascii() {
+        let input = "plain text é ü 漢字 🤖 \u{7F} /";
+        assert_eq!(json_escape(input), input);
+    }
+
+    #[test]
+    fn test_render_json_escapes_control_chars_in_commit() {
+        let message = "feat: add \u{1B}[31mred\u{1B}[0m output\n\nBody\u{07}bell";
+        let json = render_json(&evaluate_default(message));
+
+        assert!(
+            json.contains(r#""description":"add \u001b[31mred\u001b[0m output""#),
+            "{json}"
+        );
+        assert!(json.contains(r#""body":"Body\u0007bell""#), "{json}");
+        assert!(
+            json.chars().all(|character| character >= '\u{20}'),
+            "{json:?}"
+        );
+    }
+
+    #[test]
+    fn test_render_json_escapes_control_chars_in_errors() {
+        let config = ValidationConfig {
+            allowed_scopes: Some(vec!["api".to_string()]),
+            ..ValidationConfig::default()
+        };
+        let json = render_json(&evaluate("feat(we\u{0C}b): add thing", &config));
+
+        assert!(json.contains(r"Scope 'we\fb'"), "{json}");
+        assert!(
+            json.chars().all(|character| character >= '\u{20}'),
+            "{json:?}"
+        );
     }
 
     #[test]
