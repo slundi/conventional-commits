@@ -1,5 +1,6 @@
 mod cli;
 mod config;
+mod settings;
 
 use clap::Parser;
 use conventional_commits::{
@@ -74,14 +75,6 @@ fn print_color(message: &str, color: Color, is_bold: bool, is_stderr: bool) {
     let _ = stream.reset();
 }
 
-/// Parses a comma-separated string into a list of non-empty trimmed strings.
-fn split_csv(s: &str) -> Vec<String> {
-    s.split(',')
-        .map(|v| v.trim().to_string())
-        .filter(|v| !v.is_empty())
-        .collect()
-}
-
 /// Applies clean rules (starts_with + regex) when any rules are configured.
 /// Prints removed lines and returns the cleaned message.
 fn apply_clean_rules(message: String, starts_with: &[String], regexes: &[String]) -> String {
@@ -129,58 +122,17 @@ fn main() {
         }
     };
 
-    // Collect clean rules: CLI flags are combined with TOML values
-    let mut clean_starts_with: Vec<String> = cli.clean_starts_with.clone();
-    if let Some(ref csv) = file_cfg.clean_starts_with {
-        clean_starts_with.extend(split_csv(csv));
-    }
-    let mut clean_regex: Vec<String> = cli.clean_regex.clone();
-    if let Some(ref csv) = file_cfg.clean_regex {
-        clean_regex.extend(split_csv(csv));
-    }
-
-    let scopes_str = cli.scopes.as_deref().or(file_cfg.scopes.as_deref());
-    let allowed_scopes = scopes_str.map(|s| {
-        s.split(',')
-            .map(|scope| scope.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-    });
-
-    let config = ValidationConfig {
-        max_description_length: cli.max_length.or(file_cfg.max_length).unwrap_or(72),
-        min_description_length: cli.min_length.or(file_cfg.min_length).unwrap_or(0),
-        allow_custom_types: cli
-            .allow_custom_types
-            .or(file_cfg.allow_custom_types)
-            .unwrap_or(true),
-        enforce_lowercase_description: cli
-            .enforce_lowercase
-            .or(file_cfg.enforce_lowercase)
-            .unwrap_or(true),
-        enforce_lowercase_scope: cli
-            .enforce_lowercase_scope
-            .or(file_cfg.enforce_lowercase_scope)
-            .unwrap_or(false),
-        require_scope: cli
-            .require_scope
-            .or(file_cfg.require_scope)
-            .unwrap_or(false),
-        disallow_description_period: cli
-            .disallow_period
-            .or(file_cfg.disallow_period)
-            .unwrap_or(true),
-        allowed_scopes,
-        issue_pattern: cli.issue_pattern.or(file_cfg.issue_pattern),
-        allowed_types: cli.types,
-    };
+    let settings::Settings {
+        validation: config,
+        clean,
+    } = settings::resolve(&cli, &file_cfg);
 
     let format = cli.format.clone();
 
     match &cli.command {
         Some(Commands::Validate(args)) => {
             let message = get_commit_message(args.message.as_deref(), cli.message.as_deref());
-            let message = apply_clean_rules(message, &clean_starts_with, &clean_regex);
+            let message = apply_clean_rules(message, &clean.starts_with, &clean.regexes);
             let message = apply_fix_if_requested(message, cli.fix);
             validate_and_report(&message, &config, cli.verbose, &format);
         }
@@ -197,7 +149,7 @@ fn main() {
         None => {
             // Default behavior: validate commit message
             let message = get_commit_message(None, cli.message.as_deref());
-            let message = apply_clean_rules(message, &clean_starts_with, &clean_regex);
+            let message = apply_clean_rules(message, &clean.starts_with, &clean.regexes);
             let message = apply_fix_if_requested(message, cli.fix);
             validate_and_report(&message, &config, cli.verbose, &format);
         }
