@@ -1,5 +1,6 @@
 # --- Variables ---
 binary_name := "commit-check"
+deb_name := "conventional-commits-check"
 
 # Codeberg release config
 codeberg_owner := "slundi"
@@ -16,11 +17,11 @@ release_remotes := "origin Github"
 # compiler + linker for every target, no containers needed). Each one must also
 # be listed in rust-toolchain.toml. Darwin targets can't be cross-built from
 # Linux here: run the manual GitHub release workflow for those.
-release_targets := "x86_64-unknown-linux-musl aarch64-unknown-linux-musl i686-unknown-linux-musl armv7-unknown-linux-musleabihf arm-unknown-linux-musleabihf x86_64-pc-windows-gnu"
+release_targets := "x86_64-unknown-linux-musl aarch64-unknown-linux-musl i686-unknown-linux-musl"
 
 # Linux targets also packaged as .deb. ARMv6 (arm-unknown-linux-musleabihf) is
 # left out: its .deb would clash with the armv7 one (both are Debian `armhf`).
-deb_targets := "x86_64-unknown-linux-musl aarch64-unknown-linux-musl i686-unknown-linux-musl armv7-unknown-linux-musleabihf"
+deb_targets := "x86_64-unknown-linux-musl aarch64-unknown-linux-musl i686-unknown-linux-musl"
 
 # --- Development ---
 
@@ -167,13 +168,8 @@ package VERSION TARGET:
     stage="dist/{{binary_name}}-{{VERSION}}-{{TARGET}}"
     rm -rf "$stage"; mkdir -p "$stage"
     cp README.md LICENSE CHANGELOG.md "$stage/"
-    if [[ "{{TARGET}}" == *windows* ]]; then
-        cp "target/{{TARGET}}/release/{{binary_name}}.exe" "$stage/"
-        (cd dist && zip -qr "{{binary_name}}-{{VERSION}}-{{TARGET}}.zip" "$(basename "$stage")")
-    else
-        cp "target/{{TARGET}}/release/{{binary_name}}" "$stage/"
-        tar -C dist -czf "dist/{{binary_name}}-{{VERSION}}-{{TARGET}}.tar.gz" "$(basename "$stage")"
-    fi
+    cp "target/{{TARGET}}/release/{{binary_name}}" "$stage/"
+    tar -C dist -czf "dist/{{binary_name}}-{{VERSION}}-{{TARGET}}.tar.gz" "$(basename "$stage")"
     rm -rf "$stage"
     echo "  packaged $(ls dist/{{binary_name}}-{{VERSION}}-{{TARGET}}.*)"
 
@@ -205,15 +201,15 @@ package-all VERSION:
     #!/usr/bin/env bash
     set -euo pipefail
     ver="{{VERSION}}"; ver="${ver#v}"
-    rm -f dist/{{binary_name}}-{{VERSION}}-* dist/{{binary_name}}_"${ver}"-*.deb
+    rm -f dist/{{binary_name}}-{{VERSION}}-* dist/{{deb_name}}_"${ver}"-*.deb
     for target in {{release_targets}}; do
         just package {{VERSION}} "$target"
     done
     for target in {{deb_targets}}; do
         just deb "$target"
     done
-    (cd dist && sha256sum {{binary_name}}-{{VERSION}}-*.tar.gz {{binary_name}}-{{VERSION}}-*.zip \
-        {{binary_name}}_"${ver}"-*.deb > {{binary_name}}-{{VERSION}}-SHA256SUMS)
+    (cd dist && sha256sum {{binary_name}}-{{VERSION}}-*.tar.gz \
+        {{deb_name}}_"${ver}"-*.deb > {{binary_name}}-{{VERSION}}-SHA256SUMS)
     echo "Artifacts:"
     just _assets {{VERSION}}
 
@@ -242,7 +238,7 @@ _assets VERSION:
     set -euo pipefail
     shopt -s nullglob
     ver="{{VERSION}}"; ver="${ver#v}"
-    printf '%s\n' dist/{{binary_name}}-{{VERSION}}-* dist/{{binary_name}}_"${ver}"-*.deb
+    printf '%s\n' dist/{{binary_name}}-{{VERSION}}-* dist/{{deb_name}}_"${ver}"-*.deb
 
 _release-preflight VERSION:
     #!/usr/bin/env bash
