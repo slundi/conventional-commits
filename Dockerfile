@@ -1,24 +1,22 @@
-# Stage 1: Build
-FROM rust:alpine AS builder
+# Distroless multi-arch image for commit-check.
+#
+# Built from pre-compiled MUSL binaries (not from source), so the build is
+# fast and the image stays ~10 MB. Expects the build context to contain
+# `commit-check-linux-amd64` and `commit-check-linux-arm64` next to this
+# file — populate them with `just docker-context VERSION` or fetch them
+# from a Codeberg release.
+#
+# Build locally for the host platform:
+#     just docker-context v0.2.0
+#     docker build -t commit-check:dev .
+#
+# Build multi-arch via buildx (CI uses this):
+#     docker buildx build --platform linux/amd64,linux/arm64 -t commit-check:v0.2.0 .
 
-# Install build dependencies for Rust and OpenSSL/C-libraries if needed
-RUN apk add --no-cache musl-dev
+FROM gcr.io/distroless/static-debian12:nonroot
 
-WORKDIR /usr/src/commit-check
-COPY . .
+ARG TARGETARCH
+COPY commit-check-linux-${TARGETARCH} /usr/local/bin/commit-check
 
-# Build the release binary
-RUN cargo build --release
-
-# Stage 2: Runtime
-FROM alpine:latest
-
-# Copy the binary from the builder stage
-COPY --from=builder /usr/src/commit-check/target/release/commit-check /usr/local/bin/commit-check
-
-# Set the working directory for the CI environment
-WORKDIR /workspace
-
-# Run the validator by default
-ENTRYPOINT ["commit-check"]
-CMD ["--help"]
+USER nonroot:nonroot
+ENTRYPOINT ["/usr/local/bin/commit-check"]
