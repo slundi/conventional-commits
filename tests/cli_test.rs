@@ -26,6 +26,15 @@ fn test_valid_commit_via_arg() {
 }
 
 #[test]
+fn test_version_matches_cargo_toml() {
+    let mut cmd = get_test_command();
+    cmd.arg("--version")
+        .assert()
+        .success()
+        .stdout(format!("commit-check {}\n", env!("CARGO_PKG_VERSION")));
+}
+
+#[test]
 fn test_invalid_commit_via_arg() {
     let mut cmd = get_test_command();
     cmd.arg("--message")

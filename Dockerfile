@@ -2,16 +2,18 @@
 #
 # Built from pre-compiled MUSL binaries (not from source), so the build is
 # fast and the image stays ~10 MB. Expects the build context to contain
-# `commit-check-linux-amd64` and `commit-check-linux-arm64` next to this
-# file — populate them with `just docker-context VERSION` or fetch them
-# from a Codeberg release.
+# `commit-check-linux-$TARGETARCH` (amd64, arm64, arm) next to this file —
+# populate them with `just docker-context VERSION`, which takes them from
+# dist/ or the GitHub release.
+#
+# There is no RUN step, so foreign platforms build without QEMU emulation.
 #
 # Build locally for the host platform:
 #     just docker-context v0.2.0
-#     docker build -t commit-check:dev .
+#     podman build -t commit-check:dev .
 #
-# Build multi-arch via buildx (CI uses this):
-#     docker buildx build --platform linux/amd64,linux/arm64 -t commit-check:v0.2.0 .
+# Build multi-arch and push to Docker Hub:
+#     just docker-publish v0.2.0
 
 FROM gcr.io/distroless/static-debian12:nonroot
 

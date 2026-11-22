@@ -45,6 +45,16 @@
       muslCcBin = "${muslCc}/bin/${muslCc.targetPrefix}cc";
       muslArBin = "${muslCc.bintools.bintools}/bin/${muslCc.targetPrefix}ar";
 
+      # cargo-zigbuild writes glibc's arm-features.h into zig's lib dir before
+      # any arm build (ziglang/zig#3287), which fails on the read-only Nix
+      # store. Point zig (ZIG_LIB_DIR) at a symlinked lib dir that has it.
+      zigLibDir = pkgs.runCommand "zig-lib-arm-features" {} ''
+        cp -rs ${pkgs.zig}/lib/zig $out
+        chmod -R u+w $out
+        install -m644 ${pkgs.cargo-zigbuild.src}/src/linux/arm-features.h \
+          $out/libc/glibc/sysdeps/arm/arm-features.h
+      '';
+
       # Read project metadata from Cargo.toml for reuse below
       cargoToml = builtins.fromTOML (builtins.readFile ./Cargo.toml);
     in {
@@ -68,6 +78,9 @@
         # Faster linker for native glibc builds. Set here rather than in
         # .cargo/config.toml so environments without mold (CI) still link.
         CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS = "-C link-arg=-fuse-ld=mold";
+
+        # Lets `cargo zigbuild` target armv7 (see zigLibDir above).
+        ZIG_LIB_DIR = "${zigLibDir}";
 
         buildInputs = with pkgs; [
           rustToolchain
@@ -96,6 +109,11 @@
           zig
 
           github-cli
+
+          # Daemonless image builds (`just docker-smoke`, `just docker-publish`).
+          # Needs `virtualisation.containers.enable = true;` in the NixOS config
+          # for /etc/containers (policy.json, registries.conf).
+          podman
         ];
 
         # This runs when the shell starts

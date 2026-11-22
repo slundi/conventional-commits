@@ -30,3 +30,6 @@ result-*
 # Misc
 **/audit_report.txt
 dist/
+lcov.info
+# Binaries staged by `just docker-context`
+/commit-check-linux-*

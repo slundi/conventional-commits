@@ -1,0 +1,4 @@
+# The image only needs the binaries staged by `just docker-context`; keep
+# target/ and the rest of the repo out of the build context.
+*
+!commit-check-linux-*

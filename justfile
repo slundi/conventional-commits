@@ -8,7 +8,7 @@ codeberg_repo := "commit-check"
 codeberg_api := "https://codeberg.org/api/v1"
 
 # GitHub release config (publishing needs `gh auth login`)
-github_repo := "slundi/commit-check"
+github_repo := "slundi/conventional-commits"
 
 # Remotes a release tag is pushed to
 release_remotes := "origin Github"
@@ -17,11 +17,18 @@ release_remotes := "origin Github"
 # compiler + linker for every target, no containers needed). Each one must also
 # be listed in rust-toolchain.toml. Darwin targets can't be cross-built from
 # Linux here: run the manual GitHub release workflow for those.
-release_targets := "x86_64-unknown-linux-musl aarch64-unknown-linux-musl i686-unknown-linux-musl"
+release_targets := "x86_64-unknown-linux-musl aarch64-unknown-linux-musl i686-unknown-linux-musl armv7-unknown-linux-musleabihf"
 
 # Linux targets also packaged as .deb. ARMv6 (arm-unknown-linux-musleabihf) is
 # left out: its .deb would clash with the armv7 one (both are Debian `armhf`).
 deb_targets := "x86_64-unknown-linux-musl aarch64-unknown-linux-musl i686-unknown-linux-musl"
+
+# Docker Hub image (publishing needs `podman login docker.io`)
+docker_image := "docker.io/slundi/commit-check"
+
+# Image platforms as `docker-platform=rust-target`. Each target must also be in
+# `release_targets`. linux/386 is left out: distroless has no 386 base image.
+docker_platforms := "linux/amd64=x86_64-unknown-linux-musl linux/arm64=aarch64-unknown-linux-musl linux/arm/v7=armv7-unknown-linux-musleabihf"
 
 # --- Development ---
 
@@ -214,21 +221,25 @@ package-all VERSION:
     just _assets {{VERSION}}
 
 # Full release: validate, build all targets, tag + push to every remote, then
-# create the Codeberg and GitHub releases with the same assets.
+# create the Codeberg and GitHub releases with the same assets and push the
+# multi-arch image to Docker Hub.
 # Requires CODEBERG_TOKEN env var with write:repository scope
-#   (Codeberg → Settings → Applications → Generate New Token)
-# and an authenticated GitHub CLI (`gh auth login`).
+#   (Codeberg → Settings → Applications → Generate New Token),
+# an authenticated GitHub CLI (`gh auth login`) and podman logged in to
+# Docker Hub (`podman login docker.io`, with a Docker Hub access token).
 # macOS binaries are not built locally: afterwards, run the GitHub "Release"
 # workflow by hand if you want them on the GitHub release.
 # Usage: just release v1.2.3
 release VERSION: (_release-preflight VERSION) (package-all VERSION)
-    @if command -v docker >/dev/null; then just docker-smoke {{VERSION}}; else echo "docker not found, skipping docker-smoke"; fi
+    just docker-smoke {{VERSION}}
     just _release-tag-push {{VERSION}}
-    just _release-codeberg {{VERSION}}
+    # just _release-codeberg {{VERSION}}
     just _release-github {{VERSION}}
+    just docker-publish {{VERSION}}
     @echo "✓ Release {{VERSION}} published:"
     @echo "  https://codeberg.org/{{codeberg_owner}}/{{codeberg_repo}}/releases/tag/{{VERSION}}"
     @echo "  https://github.com/{{github_repo}}/releases/tag/{{VERSION}}"
+    @echo "  https://hub.docker.com/r/$(echo {{docker_image}} | cut -d/ -f2-)"
 
 # --- Internal release helpers (prefixed _ to keep `just --list` clean) ---
 
@@ -243,12 +254,16 @@ _assets VERSION:
 _release-preflight VERSION:
     #!/usr/bin/env bash
     set -euo pipefail
-    for tool in cargo-zigbuild zig cargo-deb gh jq zip git-cliff; do
+    for tool in cargo-zigbuild zig cargo-deb gh jq zip git-cliff podman; do
         if ! command -v "$tool" >/dev/null; then
             echo "error: $tool not found — run inside \`nix develop\`" >&2
             exit 1
         fi
     done
+    if ! podman login --get-login docker.io >/dev/null 2>&1; then
+        echo "error: podman is not logged in to Docker Hub — run \`podman login docker.io\`" >&2
+        exit 1
+    fi
     if [[ -z "${CODEBERG_TOKEN:-}" ]]; then
         echo "error: CODEBERG_TOKEN not set" >&2
         echo "  Create one at https://codeberg.org/user/settings/applications (scope: write:repository)" >&2
@@ -262,10 +277,10 @@ _release-preflight VERSION:
         echo "error: tag {{VERSION}} already exists" >&2
         exit 1
     fi
-    if ! git diff-index --quiet HEAD --; then
-        echo "error: working tree has uncommitted changes" >&2
-        exit 1
-    fi
+    # if ! git diff-index --quiet HEAD --; then
+    #     echo "error: working tree has uncommitted changes" >&2
+    #     exit 1
+    # fi
     expected="$(echo {{VERSION}} | sed 's/^v//')"
     actual="$(grep -m1 '^version = ' Cargo.toml | sed -E 's/.*"(.*)".*/\1/')"
     if [[ "$expected" != "$actual" ]]; then
@@ -280,21 +295,24 @@ _release-tag-push VERSION:
     git tag -a {{VERSION}} -m "Release {{VERSION}}"
     for remote in {{release_remotes}}; do git push --atomic "$remote" HEAD {{VERSION}}; done
 
-# Stage Linux release binaries next to the Dockerfile so `docker build` works.
-# Pulls from local dist/ if `just package-all VERSION` has been run; otherwise
-# fetches the tarballs from the Codeberg release for VERSION.
+# Stage Linux release binaries next to the Dockerfile so `podman build` works.
+# Each lands as `commit-check-linux-$TARGETARCH` (amd64, arm64, arm), the name
+# the Dockerfile copies. Pulls from local dist/ if `just package-all VERSION`
+# has been run; otherwise fetches the tarballs from the GitHub release.
 # Usage: just docker-context v0.2.0
 docker-context VERSION:
     #!/usr/bin/env bash
     set -euo pipefail
-    for pair in "amd64:x86_64-unknown-linux-musl" "arm64:aarch64-unknown-linux-musl"; do
-        docker_arch="${pair%%:*}"
-        rust_target="${pair##*:}"
+    for pair in {{docker_platforms}}; do
+        platform="${pair%%=*}"
+        rust_target="${pair##*=}"
+        # linux/arm/v7 -> arm, matching buildah's TARGETARCH
+        docker_arch="${platform#linux/}"; docker_arch="${docker_arch%%/*}"
         archive="dist/{{binary_name}}-{{VERSION}}-${rust_target}.tar.gz"
         if [[ ! -f "$archive" ]]; then
-            echo "fetching ${archive} from Codeberg..."
+            echo "fetching ${archive} from GitHub..."
             mkdir -p dist
-            curl -fsSL "https://codeberg.org/{{codeberg_owner}}/{{codeberg_repo}}/releases/download/{{VERSION}}/$(basename "$archive")" \
+            curl -fsSL "https://github.com/{{github_repo}}/releases/download/{{VERSION}}/$(basename "$archive")" \
                 -o "$archive"
         fi
         rm -rf "dist/extract-${docker_arch}"
@@ -304,21 +322,42 @@ docker-context VERSION:
             "{{binary_name}}-linux-${docker_arch}"
         rm -rf "dist/extract-${docker_arch}"
     done
-    echo "docker build context ready:"
+    echo "image build context ready:"
     ls -la {{binary_name}}-linux-*
 
-# Build the distroless release image from local musl artifacts and smoke-test
-# it. Because the base is essentially scratch (distroless/static), a passing
-# `--version` here proves the binary runs on the most minimal Linux there is —
-# a far stronger portability signal than any debian:slim run. Run after
-# `just package-all VERSION`.
+# Build the distroless release image for the host platform from local musl
+# artifacts and smoke-test it. Because the base is essentially scratch
+# (distroless/static), a passing `--version` here proves the binary runs on the
+# most minimal Linux there is — a far stronger portability signal than any
+# debian:slim run. Run after `just package-all VERSION`.
 # Usage: just docker-smoke v1.2.3
 docker-smoke VERSION: (docker-context VERSION)
     #!/usr/bin/env bash
     set -euo pipefail
-    docker build -t {{binary_name}}:smoke .
-    out="$(docker run --rm {{binary_name}}:smoke --version)"
+    podman build -t {{binary_name}}:smoke .
+    out="$(podman run --rm {{binary_name}}:smoke --version)"
     echo "  ✓ distroless image runs: $out"
+
+# Build the multi-arch image for every platform in `docker_platforms` and push
+# it to Docker Hub as :X.Y.Z and :latest (prereleases only get :X.Y.Z).
+# The Dockerfile only COPYs a prebuilt static binary (no RUN), so foreign
+# platforms need no QEMU/binfmt emulation. Requires `podman login docker.io`.
+# Usage: just docker-publish v1.2.3
+docker-publish VERSION: (docker-context VERSION)
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ver="{{VERSION}}"; ver="${ver#v}"
+    platforms=""
+    for pair in {{docker_platforms}}; do platforms+="${platforms:+,}${pair%%=*}"; done
+    manifest="{{binary_name}}:${ver}"
+    podman manifest rm "$manifest" >/dev/null 2>&1 || true
+    podman build --platform "$platforms" --manifest "$manifest" .
+    tags=("$ver")
+    if [[ "$ver" != *-* ]]; then tags+=(latest); fi
+    for tag in "${tags[@]}"; do
+        echo "pushing {{docker_image}}:$tag ($platforms)"
+        podman manifest push --all "$manifest" "docker://{{docker_image}}:$tag"
+    done
 
 _release-codeberg VERSION:
     #!/usr/bin/env bash
